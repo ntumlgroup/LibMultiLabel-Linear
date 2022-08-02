@@ -1,0 +1,3 @@
+[submodule "libmultilabel/nn/2TowerMNLoss"]
+	path = libmultilabel/nn/2TowerMNLoss
+	url = git@github.com:yxliu-ntu/2TowerMNLoss.git
