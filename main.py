@@ -206,7 +206,13 @@ def main():
         trainer = TorchTrainer(config)  # initialize trainer
         # train
         if not config.eval:
-            trainer.train()
+            from torch.profiler import profile, record_function, ProfilerActivity
+            with profile(activities=[
+                    ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+                with record_function("model_inference"):
+                    trainer.train()
+            print(prof.key_averages().table(
+                    sort_by="cuda_time_total", row_limit=10))
         # test
         if 'test' in trainer.datasets:
             trainer.test()
