@@ -5,9 +5,10 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from torch.profiler import ProfilerActivity, profile
 
-from libmultilabel.common_utils import Timer, AttributeDict
-from libmultilabel.logging import add_stream_handler, add_collect_handler
+from libmultilabel.common_utils import AttributeDict, Timer
+from libmultilabel.logging import add_collect_handler, add_stream_handler
 
 
 def add_all_arguments(parser):
@@ -195,7 +196,6 @@ def main():
     stream_handler = add_stream_handler(log_level)
     collect_handler = add_collect_handler(logging.NOTSET)
 
-
     logging.info(f'Run name: {config.run_name}')
 
     if config.linear:
@@ -206,13 +206,17 @@ def main():
         trainer = TorchTrainer(config)  # initialize trainer
         # train
         if not config.eval:
-            from torch.profiler import profile, record_function, ProfilerActivity
-            with profile(activities=[
-                    ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-                with record_function("model_inference"):
-                    trainer.train()
-            print(prof.key_averages().table(
-                    sort_by="cuda_time_total", row_limit=10))
+            with profile(activities=[ProfilerActivity.CPU]) as prof:
+                trainer.train()
+
+            res_table = prof.key_averages().table(
+                sort_by="self_cpu_time_total",
+                max_name_column_width=100, row_limit=500)
+            profile_path = os.path.join(trainer.checkpoint_dir, 'profile.log')
+            with open(profile_path, 'w') as f:
+                f.write(res_table)
+            logging.info(f'Saving profiling logs to {profile_path}.')
+
         # test
         if 'test' in trainer.datasets:
             trainer.test()
