@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 import numpy as np
 import scipy.sparse as sparse
@@ -14,7 +15,11 @@ __all__ = ['train_1vsrest',
            'predict_values']
 
 
-def train_1vsrest(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str):
+def train_1vsrest(y: sparse.csr_matrix,
+                  x: sparse.csr_matrix,
+                  options: str,
+                  verbose: bool = True,
+                  subset: Optional[np.ndarray] = None):
     """Trains a linear model for multiabel data using a one-vs-rest strategy.
 
     Args:
@@ -29,16 +34,21 @@ def train_1vsrest(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str):
     x, options, bias = prepare_options(x, options)
 
     y = y.tocsc()
+    if subset is None:
+        subset = np.arange(y.shape[1])
+    else:
+        y = y[:, subset]
+
     num_class = y.shape[1]
     num_feature = x.shape[1]
     weights = np.zeros((num_feature, num_class), order='F')
 
     logging.info(f'Training one-vs-rest model on {num_class} labels')
-    for i in tqdm(range(num_class)):
+    for i in tqdm(range(num_class), disable=not verbose):
         yi = y[:, i].toarray().reshape(-1)
         weights[:, i] = do_train(2*yi - 1, x, options).ravel()
 
-    return {'weights': np.asmatrix(weights), '-B': bias, 'threshold': 0}
+    return {'weights': np.asmatrix(weights), '-B': bias, 'threshold': 0, 'subset': subset}
 
 
 def prepare_options(x: sparse.csr_matrix, options: str) -> 'tuple[sparse.csr_matrix, str, float]':

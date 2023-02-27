@@ -128,6 +128,8 @@ def add_all_arguments(parser):
                         choices=['1vsrest', 'thresholding', 'cost_sensitive',
                                  'cost_sensitive_micro', 'binary_and_multiclass'],
                         help='Technique for linear classification (default: %(default)s)')
+    parser.add_argument('--label_subrange', type=float, nargs=2,
+                        help='The subrange of labels to train 1vsrest on, expressed as ratios.')
 
     parser.add_argument('-h', '--help', action='help',
                         help="If you are trying to specify network config such as dropout or activation, use a yaml file instead. "
