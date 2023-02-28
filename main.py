@@ -7,7 +7,6 @@ from pathlib import Path
 import yaml
 
 from libmultilabel.common_utils import Timer, AttributeDict
-from libmultilabel.logging import add_stream_handler, add_collect_handler
 
 
 def add_all_arguments(parser):
@@ -194,9 +193,6 @@ def main():
 
     # Set up logger
     log_level = logging.WARNING if config.silent else logging.INFO
-    stream_handler = add_stream_handler(log_level)
-    collect_handler = add_collect_handler(logging.NOTSET)
-
 
     logging.info(f'Run name: {config.run_name}')
 
@@ -204,7 +200,12 @@ def main():
         from linear_trainer import linear_run
         linear_run(config)
     else:
+        from libmultilabel.logging import add_stream_handler, add_collect_handler
         from torch_trainer import TorchTrainer
+
+        stream_handler = add_stream_handler(log_level)
+        collect_handler = add_collect_handler(logging.NOTSET)
+
         trainer = TorchTrainer(config)  # initialize trainer
         # train
         if not config.eval:
@@ -213,10 +214,10 @@ def main():
         if 'test' in trainer.datasets:
             trainer.test()
 
-    collected_logs = collect_handler.get_logs()
-    if collected_logs:
-        print('\n\n======= Collected log messages =======')
-        print("\n".join(collected_logs))
+        collected_logs = collect_handler.get_logs()
+        if collected_logs:
+            print('\n\n======= Collected log messages =======')
+            print("\n".join(collected_logs))
 
 
 if __name__ == '__main__':
