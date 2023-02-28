@@ -15,25 +15,25 @@ parser = argparse.ArgumentParser(
 )
 
 parser.add_argument('--hosts', type=str, nargs='+',
-                    help='Hosts to distribute on.')
+                    help='Hosts to distribute on')
 parser.add_argument('--subdivision', type=int, default=1,
-                    help='Number of sub-divisions of work per host.')
+                    help='Number of sub-divisions of work per host (default: %(default)s)')
 parser.add_argument('--tmp_dir', type=str, default='tmp_grid_dir',
-                    help='Temporary directory name')
-parser.add_argument('--result_dir', type=str, default='./runs',
-                    help='The directory to save checkpoints and logs (default: %(default)s)')
+                    help='Temporary directory name (default: %(default)s)')
+parser.add_argument('--pipeline_path', type=str, default='./linear_pipeline.pickle',
+                    help='Path to resulting pipeline (default: %(default)s)')
 
 args, passthrough_args = parser.parse_known_args()
 hosts = args.hosts
 tmp_dir = args.tmp_dir
-result_dir = args.result_dir
+subdivision = args.subdivision
+pipeline_path = args.pipeline_path
 
-n = len(hosts)
+div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
-
 jobs = [
-    f'{cmd} --label_subrange {i/n} {(i+1)/n} --result_dir {tmp_dir}'
-    for i in range(n)
+    f'{cmd} --label_subrange {i/div} {(i+1)/div} --result_dir {tmp_dir}'
+    for i in range(div)
 ]
 
 grid = Grid(hosts, jobs)
@@ -74,4 +74,4 @@ combined_model = {
     'bias': bias,
     'threshold': 0,
 }
-linear.save_pipeline(result_dir, preprocessor, combined_model)
+linear.save_pipeline(pipeline_path, preprocessor, combined_model)
