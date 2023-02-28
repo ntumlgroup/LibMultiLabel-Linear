@@ -70,21 +70,21 @@ for host in tqdm(hosts, disable=disable_tqdm):
 
 print('Loading models')
 pbar = tqdm(total=div, disable=disable_tqdm)
-num_labels = 0
+labels = set()
 models = []
 for root, _, files in os.walk(tmp_dir):
     for file in files:
         if file != 'linear_pipeline.pickle':
             continue
         preprocessor, model = linear.load_pipeline(f'{root}/{file}')
-        num_labels = num_labels + model['subset'].size
+        labels.update(model['subset'].tolist())
         models.append(model)
         pbar.update()
 pbar.close()
 
 print('Reconstructing model')
 bias = models[0]['-B']
-weights = np.zeros((models[0]['weights'].shape[0], num_labels), order='F')
+weights = np.zeros((models[0]['weights'].shape[0], len(labels)), order='F')
 for model in tqdm(models, disable=disable_tqdm):
     weights[:, model['subset']] = model['weights']
 
