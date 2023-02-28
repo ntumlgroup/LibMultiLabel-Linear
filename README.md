@@ -47,3 +47,8 @@ python distribute.py --hosts [hosts...] [args...]
 where `hosts` are the ssh host names to distribute on. Non-distribute `args` will be passed through to `main.py`.
 
 See `python distribute.py -h` for more details.
+
+### Example
+```bash
+python distribute.py --hosts host1 host2 --linear --training_file data/rcv1/train.txt --liblinear_options="-s 2"
+```
