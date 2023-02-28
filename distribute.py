@@ -4,10 +4,10 @@ import pathlib
 import shlex
 import shutil
 import subprocess
-import sys
 import time
 
 import numpy as np
+from tqdm import tqdm
 
 from libmultilabel import linear
 from rungrid import Grid
@@ -27,6 +27,8 @@ parser.add_argument('--model_dir', type=str, default='./model',
                     help='Path to resulting model (default: %(default)s)')
 parser.add_argument('--result_dir', type=str,
                     help='Do NOT use, result_dir cannot be specified')
+parser.add_argument('--no-tqdm', action='store_true',
+                    help='Run without tqdm')
 parser.add_argument('-h', '--help', action='help',
                     help="See this")
 
@@ -37,6 +39,7 @@ hosts = args.hosts
 tmp_dir = args.tmp_dir
 subdivision = args.subdivision
 model_dir = args.model_dir
+disable_tqdm = args.no_tqdm
 
 div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
@@ -48,7 +51,6 @@ jobs = [
 grid = Grid(hosts, jobs)
 grid.go()
 
-print('reconstructing model...')
 start = time.time()
 
 cwd = os.getcwd()
@@ -58,13 +60,16 @@ if cwd.startswith(home):
     if cwd.startswith(os.sep):
         cwd = cwd[1:]
 
+print('Copying from hosts')
 pathlib.Path(f'{tmp_dir}').mkdir(parents=True, exist_ok=True)
-for host in hosts:
+for host in tqdm(hosts, disable=disable_tqdm):
     subprocess.call(f'scp -qr "{host}:{cwd}/{tmp_dir}" "{tmp_dir}/{host}"',
                     shell=True, executable='/bin/bash')
     subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
                     shell=True, executable='/bin/bash')
 
+print('Loading models')
+pbar = tqdm(total=div, disable=disable_tqdm)
 num_labels = 0
 models = []
 for root, _, files in os.walk(tmp_dir):
@@ -74,14 +79,16 @@ for root, _, files in os.walk(tmp_dir):
         preprocessor, model = linear.load_pipeline(f'{root}/{file}')
         num_labels = num_labels + model['subset'].size
         models.append(model)
+        pbar.update()
+pbar.close()
 
+print('Reconstructing model')
 bias = models[0]['-B']
 weights = np.zeros((models[0]['weights'].shape[0], num_labels), order='F')
-for model in models:
+for model in tqdm(models, disable=disable_tqdm):
     weights[:, model['subset']] = model['weights']
 
 del models
-print(f'model reconstruction in {time.time() - start}s')
 
 combined_model = {
     'weights': np.asmatrix(weights),
