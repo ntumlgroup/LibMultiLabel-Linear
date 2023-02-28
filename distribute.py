@@ -5,6 +5,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 
 import numpy as np
 
@@ -22,14 +23,20 @@ parser.add_argument('--subdivision', type=int, default=1,
                     help='Number of sub-divisions of work per host (default: %(default)s)')
 parser.add_argument('--tmp_dir', type=str, default='tmp/result',
                     help='Temporary directory name (default: %(default)s)')
-parser.add_argument('--pipeline_path', type=str, default='./linear_pipeline.pickle',
-                    help='Path to resulting pipeline (default: %(default)s)')
+parser.add_argument('--model_dir', type=str, default='./model',
+                    help='Path to resulting model (default: %(default)s)')
+parser.add_argument('--result_dir', type=str,
+                    help='Do NOT use, result_dir cannot be specified')
+parser.add_argument('-h', '--help', action='help',
+                    help="See this")
 
 args, passthrough_args = parser.parse_known_args()
+if args.result_dir is not None:
+    raise ValueError('do NOT use result_dir')
 hosts = args.hosts
 tmp_dir = args.tmp_dir
 subdivision = args.subdivision
-pipeline_path = args.pipeline_path
+model_dir = args.model_dir
 
 div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
@@ -40,6 +47,9 @@ jobs = [
 
 grid = Grid(hosts, jobs)
 grid.go()
+
+print('reconstructing model...')
+start = time.time()
 
 cwd = os.getcwd()
 home = os.path.expanduser('~')
@@ -52,11 +62,8 @@ pathlib.Path(f'{tmp_dir}').mkdir(parents=True, exist_ok=True)
 for host in hosts:
     subprocess.call(f'scp -qr "{host}:{cwd}/{tmp_dir}" "{tmp_dir}/{host}"',
                     shell=True, executable='/bin/bash')
-    try:
-        subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
-                        shell=True, executable='/bin/bash')
-    except Exception as e:
-        print(e, file=sys.stderr)
+    subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
+                    shell=True, executable='/bin/bash')
 
 num_labels = 0
 models = []
@@ -68,17 +75,18 @@ for root, _, files in os.walk(tmp_dir):
         num_labels = num_labels + model['subset'].size
         models.append(model)
 
-bias = models[0]['bias']
-weights = np.zeros((num_labels, models[0]['weights'].shape[1]), order='F')
+bias = models[0]['-B']
+weights = np.zeros((models[0]['weights'].shape[0], num_labels), order='F')
 for model in models:
     weights[:, model['subset']] = model['weights']
 
 del models
+print(f'model reconstruction in {time.time() - start}s')
 
 combined_model = {
-    'weights': weights,
-    'bias': bias,
+    'weights': np.asmatrix(weights),
+    '-B': bias,
     'threshold': 0,
 }
-linear.save_pipeline(pipeline_path, preprocessor, combined_model)
+linear.save_pipeline(model_dir, preprocessor, combined_model)
 shutil.rmtree(tmp_dir)

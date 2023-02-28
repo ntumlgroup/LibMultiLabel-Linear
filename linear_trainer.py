@@ -9,12 +9,12 @@ from libmultilabel.common_utils import (argsort_top_k, dump_log,
 from libmultilabel.linear.utils import LINEAR_TECHNIQUES
 
 
-def linear_test(config, model, datasets):
+def linear_test(config, model, datasets, is_multiclass):
     metrics = linear.get_metrics(
         config.metric_threshold,
         config.monitor_metrics,
         datasets['test']['y'].shape[1],
-        multiclass=config.multiclass
+        multiclass=is_multiclass,
     )
     num_instance = datasets['test']['x'].shape[0]
 
@@ -62,6 +62,7 @@ def linear_run(config):
         preprocessor, model = linear.load_pipeline(config.checkpoint_path)
         datasets = preprocessor.load_data(
             config.training_file, config.test_file, config.eval)
+        is_multiclass = False
     else:
         preprocessor = linear.Preprocessor(data_format=config.data_format)
         datasets = preprocessor.load_data(
@@ -71,13 +72,13 @@ def linear_run(config):
             config.label_file,
             config.include_test_labels,
             config.remove_no_label_data)
-        config.multiclass = is_multiclass_dataset(datasets['train'], label='y')
+        is_multiclass = is_multiclass_dataset(datasets['train'], label='y')
         model = linear_train(datasets, config)
         linear.save_pipeline(config.checkpoint_dir, preprocessor, model)
 
     if config.test_file is not None:
         metric_dict, top_k_idx, top_k_scores = linear_test(
-            config, model, datasets)
+            config, model, datasets, is_multiclass)
 
         dump_log(config=config, metrics=metric_dict,
                  split='test', log_path=config.log_path)
