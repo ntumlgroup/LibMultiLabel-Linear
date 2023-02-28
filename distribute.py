@@ -2,7 +2,9 @@ import argparse
 import os
 import pathlib
 import shlex
+import shutil
 import subprocess
+import sys
 
 import numpy as np
 
@@ -18,7 +20,7 @@ parser.add_argument('--hosts', type=str, nargs='+',
                     help='Hosts to distribute on')
 parser.add_argument('--subdivision', type=int, default=1,
                     help='Number of sub-divisions of work per host (default: %(default)s)')
-parser.add_argument('--tmp_dir', type=str, default='tmp_grid_dir',
+parser.add_argument('--tmp_dir', type=str, default='tmp/result',
                     help='Temporary directory name (default: %(default)s)')
 parser.add_argument('--pipeline_path', type=str, default='./linear_pipeline.pickle',
                     help='Path to resulting pipeline (default: %(default)s)')
@@ -46,11 +48,15 @@ if cwd.startswith(home):
     if cwd.startswith(os.sep):
         cwd = cwd[1:]
 
-pathlib.Path(f'{cwd}/{tmp_dir}').mkdir(parents=True, exist_ok=True)
+pathlib.Path(f'{tmp_dir}').mkdir(parents=True, exist_ok=True)
 for host in hosts:
     subprocess.call(f'scp -qr "{host}:{cwd}/{tmp_dir}" "{tmp_dir}/{host}"',
                     shell=True, executable='/bin/bash')
-    subprocess.call(f'ssh {host} "rm -r \\"{cwd}/{tmp_dir}\\""')
+    try:
+        subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
+                        shell=True, executable='/bin/bash')
+    except Exception as e:
+        print(e, file=sys.stderr)
 
 num_labels = 0
 models = []
@@ -75,3 +81,4 @@ combined_model = {
     'threshold': 0,
 }
 linear.save_pipeline(pipeline_path, preprocessor, combined_model)
+shutil.rmtree(tmp_dir)
