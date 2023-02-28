@@ -68,27 +68,25 @@ for host in tqdm(hosts, disable=disable_tqdm):
     subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
                     shell=True, executable='/bin/bash')
 
-print('Loading models')
+print('Reconstructing model')
 pbar = tqdm(total=div, disable=disable_tqdm)
-labels = set()
-models = []
+weights = None
+bias = None
 for root, _, files in os.walk(tmp_dir):
     for file in files:
         if file != 'linear_pipeline.pickle':
             continue
         preprocessor, model = linear.load_pipeline(f'{root}/{file}')
-        labels.update(model['subset'].tolist())
-        models.append(model)
+        if weights is None:
+            num_labels = len(preprocessor.binarizer.classes_)
+            num_features = model['weights'].shape[0]
+            weights = np.zeros((num_features, num_labels), order='F')
+        if bias is None:
+            bias = model['-B']
+
+        weights[:, model['subset']] = model['weights']
         pbar.update()
 pbar.close()
-
-print('Reconstructing model')
-bias = models[0]['-B']
-weights = np.zeros((models[0]['weights'].shape[0], len(labels)), order='F')
-for model in tqdm(models, disable=disable_tqdm):
-    weights[:, model['subset']] = model['weights']
-
-del models
 
 combined_model = {
     'weights': np.asmatrix(weights),
