@@ -80,7 +80,7 @@ for root, _, files in os.walk(tmp_dir):
         if weights is None:
             num_labels = len(preprocessor.binarizer.classes_)
             num_features = model['weights'].shape[0]
-            weights = np.zeros((num_features, num_labels), order='F')
+            weights = np.zeros((num_features, num_labels))
         if bias is None:
             bias = model['-B']
 

@@ -2,6 +2,7 @@ import logging
 from math import ceil
 
 import numpy as np
+from tqdm import tqdm
 
 import libmultilabel.linear as linear
 from libmultilabel.common_utils import (argsort_top_k, dump_log,
@@ -22,7 +23,7 @@ def linear_test(config, model, datasets, is_multiclass):
     top_k_idx = np.zeros((num_instance, k), dtype='i')
     top_k_scores = np.zeros((num_instance, k), dtype='d')
 
-    for i in range(ceil(num_instance / config.eval_batch_size)):
+    for i in tqdm(range(ceil(num_instance / config.eval_batch_size))):
         slice = np.s_[i*config.eval_batch_size:(i+1)*config.eval_batch_size]
         preds = linear.predict_values(model, datasets['test']['x'][slice])
         target = datasets['test']['y'][slice].toarray()
@@ -60,6 +61,7 @@ def linear_run(config):
 
     if config.eval:
         preprocessor, model = linear.load_pipeline(config.checkpoint_path)
+        model['weights'] = np.asmatrix(np.ascontiguousarray(model['weights']))
         datasets = preprocessor.load_data(
             config.training_file, config.test_file, config.eval)
         is_multiclass = False
