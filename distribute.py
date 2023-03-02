@@ -48,24 +48,16 @@ cmds = [
     for i in range(div)
 ]
 
+print(f'Running {div} jobs on {len(hosts)} hosts.')
 sshutils.distribute(cmds, hosts)
 
-start = time.time()
-
-cwd = os.getcwd()
-home = os.path.expanduser('~')
-if cwd.startswith(home):
-    cwd = cwd[len(home):]
-    if cwd.startswith(os.sep):
-        cwd = cwd[1:]
-
+cwd = sshutils.home_relative_cwd()
 print('Copying from hosts')
 pathlib.Path(f'{tmp_dir}').mkdir(parents=True, exist_ok=True)
 for host in tqdm(hosts, disable=disable_tqdm):
     subprocess.call(f'scp -qr "{host}:{cwd}/{tmp_dir}" "{tmp_dir}/{host}"',
                     shell=True, executable='/bin/bash')
-    subprocess.call('ssh {} "rm -r {}"'.format(host, shlex.quote(f'{cwd}/{tmp_dir}')),
-                    shell=True, executable='/bin/bash')
+    sshutils.execute(f'rm -r {tmp_dir}', [host])
 
 print('Reconstructing model')
 pbar = tqdm(total=div, disable=disable_tqdm)

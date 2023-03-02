@@ -2,9 +2,19 @@ import os
 import queue
 import subprocess
 import threading
-from typing import Optional
 
 # TODO: propogate local signals to remote hosts.
+
+
+def home_relative_cwd() -> str:
+    """Returns cwd relative to home if cwd is under home, returns cwd otherwise.
+    """
+    cwd = os.getcwd()
+    home = os.path.expanduser('~')
+    if cwd.startswith(home):
+        return os.path.relpath(cwd, home)
+    return cwd
+
 
 def run_remote(cmd: str, host: str, working_dir: str) -> int:
     """Low level function to execute cmd on host.
@@ -35,13 +45,13 @@ def run_remote(cmd: str, host: str, working_dir: str) -> int:
 
 def distribute(cmds: 'list[str]',
                hosts: 'list[str]',
-               working_dir: Optional[str] = None):
+               working_dir: str = home_relative_cwd()):
     """Distribute cmds on hosts. Each host executes cmds sequentially.
 
     Args:
         cmds (list[str]): List of shell commands.
         hosts (list[str]): List of ssh host names.
-        working_dir (Optional[str], optional): Working directory. If none, uses home_relative_cwd().
+        working_dir (str, optional): Working directory. Defaults to home_relative_cwd().
     """
     if working_dir is None:
         working_dir = home_relative_cwd()
@@ -71,23 +81,12 @@ def distribute(cmds: 'list[str]',
         t.join()
 
 
-def execute(cmd: str, hosts: 'list[str]', working_dir: Optional[str] = None):
+def execute(cmd: str, hosts: 'list[str]', working_dir: str = home_relative_cwd()):
     """Executes cmd on every host.
 
     Args:
         cmd (str): Shell command.
         hosts (list[str]): List of ssh host names.
-        working_dir (Optional[str], optional): Working directory. If none, uses home_relative_cwd().
+        working_dir (str, optional): Working directory. Defaults to home_relative_cwd().
     """
     distribute([cmd]*len(hosts), hosts, working_dir)
-
-
-def home_relative_cwd() -> str:
-    """Returns cwd relative to home if cwd is under home, returns cwd otherwise.
-    """
-    cwd = os.getcwd()
-    home = os.path.expanduser('~')
-    if cwd.startswith(home):
-        return os.path.relpath(cwd, home)
-    return cwd
-
