@@ -4,8 +4,19 @@ import subprocess
 import threading
 from typing import Optional
 
+# TODO: propogate local signals to remote hosts.
 
-def run_remote(cmd: str, host: str, working_dir: str):
+def run_remote(cmd: str, host: str, working_dir: str) -> int:
+    """Low level function to execute cmd on host.
+
+    Args:
+        cmd (str): Shell command.
+        host (str): ssh host name.
+        working_dir (str): Working directory.
+
+    Returns:
+        int: exit status of the local ssh command.
+    """
     cmd = cmd.replace('"', '\\"').replace('$', '\\$')
     # ssh -o LogLevel=QUIET -xte none
     # should be the ideal solution to signal SIGHUP,
@@ -25,20 +36,26 @@ def run_remote(cmd: str, host: str, working_dir: str):
 def distribute(cmds: 'list[str]',
                hosts: 'list[str]',
                working_dir: Optional[str] = None):
+    """Distribute cmds on hosts. Each host executes cmds sequentially.
+
+    Args:
+        cmds (list[str]): List of shell commands.
+        hosts (list[str]): List of ssh host names.
+        working_dir (Optional[str], optional): Working directory. If none, uses home_relative_cwd().
+    """
     if working_dir is None:
         working_dir = home_relative_cwd()
 
     done = queue.Queue()
 
-    def make_target(i, cmd, host):
+    def make_thread(i, cmd, host):
         def target():
             run_remote(cmd, host, working_dir)
             done.put(i)
-        return target
+        return threading.Thread(target=target)
 
-    pool = [threading.Thread(
-        target=make_target(i, cmd, host),
-    ) for i, (cmd, host) in enumerate(zip(cmds, hosts))]
+    pool = [make_thread(i, cmd, host)
+            for i, (cmd, host) in enumerate(zip(cmds, hosts))]
     for t in pool:
         t.start()
 
@@ -46,9 +63,7 @@ def distribute(cmds: 'list[str]',
     while len(cmds) > 0:
         i = done.get()
         pool[i].join()
-        pool[i] = threading.Thread(
-            target=make_target(i, cmds[0], hosts[i])
-        )
+        pool[i] = make_thread(i, cmds[0], hosts[i])
         pool[i].start()
         cmds = cmds[1:]
 
@@ -57,14 +72,22 @@ def distribute(cmds: 'list[str]',
 
 
 def execute(cmd: str, hosts: 'list[str]', working_dir: Optional[str] = None):
+    """Executes cmd on every host.
+
+    Args:
+        cmd (str): Shell command.
+        hosts (list[str]): List of ssh host names.
+        working_dir (Optional[str], optional): Working directory. If none, uses home_relative_cwd().
+    """
     distribute([cmd]*len(hosts), hosts, working_dir)
 
 
 def home_relative_cwd() -> str:
-    """Returns cwd relative to home if cwd is in home, returns cwd otherwise.
+    """Returns cwd relative to home if cwd is under home, returns cwd otherwise.
     """
     cwd = os.getcwd()
     home = os.path.expanduser('~')
     if cwd.startswith(home):
         return os.path.relpath(cwd, home)
     return cwd
+
