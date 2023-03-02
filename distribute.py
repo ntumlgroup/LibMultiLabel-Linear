@@ -9,8 +9,8 @@ import time
 import numpy as np
 from tqdm import tqdm
 
+import sshutils
 from libmultilabel import linear
-from rungrid import Grid
 
 parser = argparse.ArgumentParser(
     add_help=False,
@@ -43,13 +43,12 @@ disable_tqdm = args.no_tqdm
 
 div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
-jobs = [
+cmds = [
     f'{cmd} --label_subrange {i/div} {(i+1)/div} --result_dir {tmp_dir}'
     for i in range(div)
 ]
 
-grid = Grid(hosts, jobs)
-grid.go()
+sshutils.distribute(cmds, hosts)
 
 start = time.time()
 
