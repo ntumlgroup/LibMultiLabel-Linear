@@ -4,7 +4,6 @@ import pathlib
 import shlex
 import shutil
 import subprocess
-import time
 
 import numpy as np
 from tqdm import tqdm
