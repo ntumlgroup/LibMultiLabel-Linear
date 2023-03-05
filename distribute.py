@@ -48,7 +48,9 @@ cmds = [
 ]
 
 print(f'Running {div} jobs on {len(hosts)} hosts.')
+handlers = sshutils.propogate_signal()
 sshutils.distribute(cmds, hosts)
+sshutils.propogate_signal(handlers)
 
 cwd = sshutils.home_relative_cwd()
 print('Copying from hosts')
