@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 
 import sshutils
+import mmap_matrix
 from libmultilabel import linear
 
 parser = argparse.ArgumentParser(
@@ -26,8 +27,10 @@ parser.add_argument('--model_dir', type=str, default='./model',
                     help='Path to resulting model (default: %(default)s)')
 parser.add_argument('--result_dir', type=str,
                     help='Do NOT use, result_dir cannot be specified')
-parser.add_argument('--no-tqdm', action='store_true',
+parser.add_argument('--no_tqdm', action='store_true',
                     help='Run without tqdm')
+parser.add_argument('--mmap', action='store_true',
+                    help='Don\'t keep weights in memory, but memmap it instead')
 parser.add_argument('-h', '--help', action='help',
                     help="See this")
 
@@ -39,6 +42,7 @@ tmp_dir = args.tmp_dir
 subdivision = args.subdivision
 model_dir = args.model_dir
 disable_tqdm = args.no_tqdm
+mmap = args.mmap
 
 div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
@@ -72,7 +76,13 @@ for root, _, files in os.walk(tmp_dir):
         if weights is None:
             num_labels = len(preprocessor.binarizer.classes_)
             num_features = model['weights'].shape[0]
-            weights = np.zeros((num_features, num_labels))
+            if mmap:
+                weights = mmap_matrix.new(
+                    f'{model_dir}/weights.dat',
+                    shape=(num_features, num_labels),
+                    dtype='d', mode='w+')
+            else:
+                weights = np.zeros((num_features, num_labels))
         if bias is None:
             bias = model['-B']
 
@@ -80,8 +90,16 @@ for root, _, files in os.walk(tmp_dir):
         pbar.update()
 pbar.close()
 
+if mmap:
+    weights.flush()
+    weights = mmap_matrix.pickleable(f'{model_dir}/weights.dat',
+                                     shape=(num_features, num_labels),
+                                     dtype='d')
+else:
+    weights = np.asmatrix(weights)
+
 combined_model = {
-    'weights': np.asmatrix(weights),
+    'weights': weights,
     '-B': bias,
     'threshold': 0,
 }
