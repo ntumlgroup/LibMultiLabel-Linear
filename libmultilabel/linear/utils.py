@@ -3,6 +3,7 @@ import pickle
 import re
 from pathlib import Path
 
+import numpy as np
 import scipy.sparse as sparse
 import sklearn.base
 import sklearn.model_selection
@@ -13,7 +14,8 @@ import libmultilabel.linear as linear
 
 from .preprocessor import Preprocessor
 
-__all__ = ['save_pipeline', 'load_pipeline', 'MultiLabelEstimator', 'GridSearchCV']
+__all__ = ['save_pipeline', 'load_pipeline',
+           'MultiLabelEstimator', 'GridSearchCV']
 
 
 LINEAR_TECHNIQUES = {
@@ -54,7 +56,13 @@ def load_pipeline(checkpoint_path: str) -> tuple:
     """
     with open(checkpoint_path, 'rb') as f:
         pipeline = pickle.load(f)
-    return (pipeline['preprocessor'], pipeline['model'])
+    preprocessor, model = pipeline['preprocessor'], pipeline['model']
+    if 'mmap' in model:
+        weights_path = os.path.join(os.path.dirname(checkpoint_path), 'weights.dat')
+        weights = np.matrix(np.memmap(weights_path, mode='r', **model['mmap']))
+        model['weights'] = weights
+
+    return preprocessor, model
 
 
 class MultiLabelEstimator(sklearn.base.BaseEstimator):

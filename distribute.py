@@ -9,7 +9,6 @@ import numpy as np
 from tqdm import tqdm
 
 import sshutils
-import mmap_matrix
 from libmultilabel import linear
 
 parser = argparse.ArgumentParser(
@@ -77,7 +76,7 @@ for root, _, files in os.walk(tmp_dir):
             num_labels = len(preprocessor.binarizer.classes_)
             num_features = model['weights'].shape[0]
             if mmap:
-                weights = mmap_matrix.new(
+                weights = np.memmap(
                     f'{model_dir}/weights.dat',
                     shape=(num_features, num_labels),
                     dtype='d', mode='w+')
@@ -90,18 +89,16 @@ for root, _, files in os.walk(tmp_dir):
         pbar.update()
 pbar.close()
 
-if mmap:
-    weights.flush()
-    weights = mmap_matrix.pickleable(f'{model_dir}/weights.dat',
-                                     shape=(num_features, num_labels),
-                                     dtype='d')
-else:
-    weights = np.asmatrix(weights)
 
 combined_model = {
-    'weights': weights,
     '-B': bias,
     'threshold': 0,
 }
+
+if mmap:
+    combined_model['mmap'] = {'shape': (num_features, num_labels), 'dtype': 'd'}
+else:
+    combined_model['weights'] = np.asmatrix(weights)
+
 linear.save_pipeline(model_dir, preprocessor, combined_model)
 shutil.rmtree(tmp_dir)
