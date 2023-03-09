@@ -10,6 +10,9 @@ from torch.profiler import ProfilerActivity, profile
 from libmultilabel.common_utils import AttributeDict, Timer
 from libmultilabel.logging import add_collect_handler, add_stream_handler
 
+import torch
+torch.set_num_threads(1)
+
 
 def add_all_arguments(parser):
     # path / directory
@@ -210,7 +213,7 @@ def main():
                 trainer.train()
 
             res_table = prof.key_averages().table(
-                sort_by="self_cpu_time_total",
+                sort_by="cpu_time_total",
                 max_name_column_width=100, row_limit=500)
             profile_path = os.path.join(trainer.checkpoint_dir, 'profile.log')
             with open(profile_path, 'w') as f:
