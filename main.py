@@ -212,6 +212,7 @@ def main():
             with profile(activities=[ProfilerActivity.CPU]) as prof:
                 trainer.train()
 
+            # save the profiling log
             res_table = prof.key_averages().table(
                 sort_by="cpu_time_total",
                 max_name_column_width=100, row_limit=500)

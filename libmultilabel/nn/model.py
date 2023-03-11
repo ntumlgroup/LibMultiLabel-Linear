@@ -244,7 +244,6 @@ class Model(MultiLabelModel):
             outputs = self.network(batch)
         pred_logits = outputs['logits']
 
-        with profiler.record_function(">>>>> loss"):
-            loss = self.loss_function(pred_logits, target_labels.float())
+        loss = self.loss_function(pred_logits, target_labels.float())
 
         return loss, pred_logits
