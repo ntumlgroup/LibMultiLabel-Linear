@@ -7,30 +7,18 @@ LibMultiLabel is a library for binary, multi-class, and multi-label classificati
 - support for common neural network architectures and linear classsifiers
 - easy hyper-parameter selection
 
-For installation of LibMultiLabel, you can visit the `Command Line Interface <cli/ov_data_format.html>`_  or the `APIs <api/api.html>`_.
+LibMultiLabel can be used through either `Command Line Interface <cli_index.html>`_ or `APIs <library_index.html>`_. Check their respective documents for installation instructions.
 
 For practical tips, please see the `User Guide <https://www.csie.ntu.edu.tw/~cjlin/papers/libmultilabel/userguide.pdf>`_.
 
 .. toctree::
-    :caption: Command Line Interface
-    :maxdepth: 1
-    :hidden:
-
-    cli/ov_data_format
-    cli/linear
-    cli/nn
-    cli/flags
-    User Guide <https://www.csie.ntu.edu.tw/~cjlin/papers/libmultilabel/userguide.pdf>
-
-.. toctree::
-   :caption: Library
    :maxdepth: 1
    :hidden:
 
-   api/api
-   api/linear
-   api/nn
-
+   cli_index
+   library_index
+   tutorial
+   
 
 ..
    Indices and tables

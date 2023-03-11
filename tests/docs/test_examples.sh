@@ -1,11 +1,11 @@
 #!/bin/bash
 
 BRANCH_TO_TEST=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
-REPORT_PATH="test_tutorial_report.txt"
+REPORT_PATH="test_doc_examples_report.txt"
 LOG_PREFIX="out"
 
 update_libmultilabel() {
-  pip install -U libmultilabel
+  pip3 install -U libmultilabel
 }
 
 #######################################
@@ -29,18 +29,41 @@ run_and_compare_logs() {
   echo "$is_passed  $command" >> $REPORT_PATH &
 
   # Remove temporary files.
-  rm out_${BRANCH_TO_TEST}.log
-  rm out_master.log
+  rm ${LOG_PREFIX}_${BRANCH_TO_TEST}.log
+  rm ${LOG_PREFIX}_master.log
+}
+
+#######################################
+# Check if error occur.
+# Arguments:
+#   $1: Command to run.
+#######################################
+run() {
+  command="$1"
+  # Simply run the code and test if error occur.
+  $command
+  is_passed=$([ $? = 0 ] && echo "PASSED" || echo "FAILED")
+  echo "$is_passed  $command" >> $REPORT_PATH &
 }
 
 main() {
   rm $REPORT_PATH
-  TEST_FILES=(
-    "linear_quickstart.py"
-    "kimcnn_quickstart.py"
-    "bert_quickstart.py"
+  TEST_FILES_WithoutOutput=(
+    "plot_linear_gridsearch_tutorial.py"
+    "plot_dataset_tutorial.py"
   )
-  for file_name in "${TEST_FILES[@]}"; do
+  for file_name in "${TEST_FILES_WithoutOutput[@]}"; do
+    command="python3 docs/examples/${file_name}"
+    run "$command"
+  done
+
+  TEST_FILES_WithOutput=(
+    "plot_linear_quickstart.py"
+    "plot_KimCNN_quickstart.py"
+    "plot_bert_quickstart.py"
+  )
+  for file_name in "${TEST_FILES_WithOutput[@]}"; do
+    echo ${file_name}
     command="python3 docs/examples/${file_name}"
     run_and_compare_logs "$command"
   done
@@ -54,7 +77,7 @@ main() {
 #######################################
 # Please run this script in the LibMultilabel directory.
 # Usage:
-#   bash tests/docs/test_tutorial.sh
+#   bash tests/docs/test_examples.sh
 #######################################
 if $(echo $(pwd) | grep -q "tests"); then
   echo "Please run this script in the LibMultilabel directory."

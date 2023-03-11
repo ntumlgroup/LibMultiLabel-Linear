@@ -37,6 +37,10 @@ Preprocessor
    .. automethod:: __init__
 
 
+.. autofunction:: read_libmultilabel_format
+
+.. autofunction:: read_libsvm_format
+
 Load and Save Pipeline
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -47,8 +51,6 @@ Load and Save Pipeline
 
 Grid Search with Sklearn Estimators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. currentmodule:: libmultilabel.linear.sklearn_helper
 
 .. autoclass:: MultiLabelEstimator
    :members:
