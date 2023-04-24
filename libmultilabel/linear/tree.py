@@ -291,9 +291,9 @@ def as_mmap(arr: sparse.csr_matrix, dir: str) -> sparse.csr_matrix:
     data = np.memmap(dir / 'data', dtype=arr.data.dtype,
                      mode='w+', shape=arr.data.shape)
     indices = np.memmap(dir / 'indices', dtype=np.int32,
-                        mode='w+', shape=indices.data.shape)
+                        mode='w+', shape=arr.indices.shape)
     indptr = np.memmap(dir / 'indptr', dtype=np.int32,
-                       mode='w+', shape=indptr.data.shape)
+                       mode='w+', shape=arr.indptr.shape)
     data[:] = arr.data
     indices[:] = arr.indices
     indptr[:] = arr.indptr
