@@ -43,7 +43,7 @@ class TreeModel:
                  root: Node,
                  flat_model: linear.FlatModel,
                  weight_map: np.ndarray,
-                 mmap_root: str,
+                 mmap_root: pathlib.Path,
                  ):
         self.name = 'mmap-tree'
         self.root = root
@@ -147,19 +147,22 @@ def train_tree(y: sparse.csr_matrix,
         num_nodes += 1
     root.dfs(count)
 
-    mmap_root = f'weights/{uuid.uuid4().hex}'
+    mmap_root = pathlib.Path('weights') / uuid.uuid4().hex
+    (mmap_root / 'nodes').mkdir(parents=True, exist_ok=True)
     pbar = tqdm(total=num_nodes, disable=not verbose)
 
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        node.uuid = uuid.uuid4().hex
+        node_path = mmap_root / 'nodes' / node.uuid
         _train_node(y[relevant_instances],
-                    x[relevant_instances], options, node, mmap_root)
+                    x[relevant_instances], options, node, node_path)
         pbar.update()
 
     root.dfs(visit)
     pbar.close()
 
-    flat_model, weight_map = _flatten_model(root, mmap_root)
+    flat_model, weight_map = _flatten_model(root, mmap_root / 'flat_model')
     return TreeModel(root, flat_model, weight_map, mmap_root)
 
 
@@ -209,7 +212,7 @@ def _train_node(y: sparse.csr_matrix,
                 x: sparse.csr_matrix,
                 options: str,
                 node: Node,
-                mmap_root: str,
+                mmap: dict[str, pathlib.Path | int],
                 ):
     """If node is internal, computes the metalabels representing each child and trains
     on the metalabels. Otherwise, train on y.
@@ -236,13 +239,10 @@ def _train_node(y: sparse.csr_matrix,
         )
 
     weights = sparse.csr_matrix(node.model.weights)
-    node.uuid = uuid.uuid4().hex
-    dir = pathlib.Path(f'{mmap_root}/{node.uuid}')
-    dir.mkdir(parents=True, exist_ok=True)
-    node.model.weights = as_mmap(weights, dir)
+    node.model.weights = as_mmap(weights, mmap)
 
 
-def _flatten_model(root: Node, mmap_root: str) -> tuple[linear.FlatModel, np.ndarray]:
+def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatModel, np.ndarray]:
     """Flattens tree weight matrices into a single weight matrix. The flattened weight
     matrix is used to predict all possible values, which is cached for beam search.
     This pessimizes complexity but is faster in practice.
@@ -274,7 +274,7 @@ def _flatten_model(root: Node, mmap_root: str) -> tuple[linear.FlatModel, np.nda
 
     model = linear.FlatModel(
         name='flattened-tree',
-        weights=mmap_hstack(weights, f'{mmap_root}/flat_model'),
+        weights=mmap_hstack(weights, mmap_path),
         bias=bias,
         thresholds=0,
     )
@@ -286,13 +286,14 @@ def _flatten_model(root: Node, mmap_root: str) -> tuple[linear.FlatModel, np.nda
     return model, weight_map
 
 
-def as_mmap(arr: sparse.csr_matrix, dir: str) -> sparse.csr_matrix:
-    dir = pathlib.Path(dir)
-    data = np.memmap(dir / 'data', dtype=arr.data.dtype,
+def as_mmap(arr: sparse.csr_matrix,
+            path: pathlib.Path
+            ) -> sparse.csr_matrix:
+    data = np.memmap(path.parent / f'{path.name}.data', dtype=arr.data.dtype,
                      mode='w+', shape=arr.data.shape)
-    indices = np.memmap(dir / 'indices', dtype=np.int32,
+    indices = np.memmap(path.parent / f'{path.name}.indices', dtype=np.int32,
                         mode='w+', shape=arr.indices.shape)
-    indptr = np.memmap(dir / 'indptr', dtype=np.int32,
+    indptr = np.memmap(path.parent / f'{path.name}.indptr', dtype=np.int32,
                        mode='w+', shape=arr.indptr.shape)
     data[:] = arr.data
     indices[:] = arr.indices
@@ -300,12 +301,12 @@ def as_mmap(arr: sparse.csr_matrix, dir: str) -> sparse.csr_matrix:
     return sparse.csr_matrix((data, indices, indptr), shape=arr.shape)
 
 
-def mmap_hstack(blocks: list[sparse.csr_matrix], dir: str, dtype=None) -> sparse.csr_matrix:
+def mmap_hstack(blocks: list[sparse.csr_matrix], path: pathlib.Path, dtype=None) -> sparse.csr_matrix:
     if len(blocks) == 0:
         return sparse.csr_matrix((0, 0))
 
     if dtype is None:
-        dtype = np.find_common_type([b.data.dtypedtype for b in blocks], [])
+        dtype = np.find_common_type([b.data.dtype for b in blocks], [])
 
     m = blocks[0].shape[0]
     n = 0
@@ -316,25 +317,29 @@ def mmap_hstack(blocks: list[sparse.csr_matrix], dir: str, dtype=None) -> sparse
         n = n + b.shape[1]
         nnz = nnz + b.data.size
 
-    dir = pathlib.Path(dir)
-    data = np.memmap(dir / 'data', dtype=dtype,
+    data = np.memmap(path.parent / f'{path.name}.data', dtype=dtype,
                      mode='w+', shape=nnz)
-    indices = np.memmap(dir / 'indices', dtype=np.int32,
+    indices = np.memmap(path.parent / f'{path.name}.indices', dtype=np.int32,
                         mode='w+', shape=nnz)
-    indptr = np.memmap(dir / 'indptr', dtype=np.int32,
+    indptr = np.memmap(path.parent / f'{path.name}.indptr', dtype=np.int32,
                        mode='w+', shape=m+1)
 
+    pbar = tqdm(total=m*len(blocks))
     top = 0
     for row in range(m):
         indptr[row] = top
         col = 0
         for b in blocks:
-            brnnz = b[row].nnz
-            data[top:top+brnnz] = b[row].data
-            indices[top:top+brnnz] = b[row].indices + col
+            br = b[row]
+            brnnz = br.nnz
+            data[top:top+brnnz] = br.data
+            indices[top:top+brnnz] = br.indices + col
 
             top = top + brnnz
             col = col + b.shape[1]
+
+            pbar.update()
+
     indptr[-1] = nnz
 
     return sparse.csr_matrix((data, indices, indptr), shape=(m, n))
