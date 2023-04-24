@@ -42,11 +42,18 @@ def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
     pathlib.Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
     checkpoint_path = os.path.join(checkpoint_dir, 'linear_pipeline.pickle')
 
+    if model.name == 'mmap-tree':
+        weights = model.flat_model.weights
+        del model.flat_model.weights
+
     with open(checkpoint_path, 'wb') as f:
         pickle.dump({
             'preprocessor': preprocessor,
             'model': model,
         }, f)
+
+    if model.name == 'mmap-tree':
+        model.flat_model.weights = weights
 
 
 def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
@@ -60,7 +67,22 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     """
     with open(checkpoint_path, 'rb') as f:
         pipeline = pickle.load(f)
-    return (pipeline['preprocessor'], pipeline['model'])
+    preprocessor = pipeline['preprocessor']
+    model = pipeline['model']
+
+    if model.name == 'mmap-tree':
+        m = model.mmap
+        dir = pathlib.Path(m['root']) / 'flat_model'
+        data = np.memmap(dir / 'data', mode='r',
+                         dtype=m['dtype'], shape=m['nnz'])
+        indices = np.memmap(dir / 'indices', mode='r',
+                            dtype=np.int32, shape=m['nnz'])
+        indptr = np.memmap(dir / 'indptr', mode='r',
+                           dtype=np.int32, shape=m['shape'][0] + 1)
+        model.flat_model.weights = sparse.csr_matrix(
+            (data, indices, indptr), m['shape'])
+
+    return preprocessor, model
 
 
 class MultiLabelEstimator(sklearn.base.BaseEstimator):
