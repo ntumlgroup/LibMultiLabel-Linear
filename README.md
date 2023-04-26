@@ -21,5 +21,10 @@ git clone https://github.com/ntumlgroup/blinkless
 pip install blinkless
 ```
 
+Currently there is an issue with file handles. You will need to do
+```bash
+ulimit -n $(ulimit -Hn)
+```
+
 ## Documentation
 See the documentation here: https://www.csie.ntu.edu.tw/~cjlin/libmultilabel
