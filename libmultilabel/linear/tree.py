@@ -10,6 +10,9 @@ import sklearn.cluster
 import sklearn.preprocessing
 from tqdm import tqdm
 
+import blinkless.sparse
+import blinkless.stack_impl
+
 from . import linear
 
 __all__ = ['train_tree']
@@ -148,15 +151,21 @@ def train_tree(y: sparse.csr_matrix,
     root.dfs(count)
 
     mmap_root = pathlib.Path('weights') / uuid.uuid4().hex
-    (mmap_root / 'nodes').mkdir(parents=True, exist_ok=True)
+    mmap_root.mkdir(parents=True, exist_ok=True)
     pbar = tqdm(total=num_nodes, disable=not verbose)
+
+    node_mmaps = {
+        'path': mmap_root / 'nodes',
+        'num_data': 0,
+        'num_indptr': 0,
+        'dtype': np.float64,
+        'itemsize': 8,  # numpy is dumb
+    }
 
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
-        node.uuid = uuid.uuid4().hex
-        node_path = mmap_root / 'nodes' / node.uuid
         _train_node(y[relevant_instances],
-                    x[relevant_instances], options, node, node_path)
+                    x[relevant_instances], options, node, node_mmaps)
         pbar.update()
 
     root.dfs(visit)
@@ -287,59 +296,44 @@ def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatMode
 
 
 def as_mmap(arr: sparse.csr_matrix,
-            path: pathlib.Path
+            mmap: dict[str, pathlib.Path | int]
             ) -> sparse.csr_matrix:
-    data = np.memmap(path.parent / f'{path.name}.data', dtype=arr.data.dtype,
-                     mode='w+', shape=arr.data.shape)
+    return arr
+    path = mmap['path']
+    data = np.memmap(path.parent / f'{path.name}.data', dtype=mmap['dtype'],
+                     mode='w+', shape=arr.data.shape, offset=mmap['num_data']*mmap['itemsize'])
     indices = np.memmap(path.parent / f'{path.name}.indices', dtype=np.int32,
-                        mode='w+', shape=arr.indices.shape)
+                        mode='w+', shape=arr.indices.shape, offset=mmap['num_data']*4)
     indptr = np.memmap(path.parent / f'{path.name}.indptr', dtype=np.int32,
-                       mode='w+', shape=arr.indptr.shape)
+                       mode='w+', shape=arr.indptr.shape, offset=mmap['num_indptr']*4)
     data[:] = arr.data
     indices[:] = arr.indices
     indptr[:] = arr.indptr
+    mmap['num_data'] = mmap['num_data'] + arr.data.size
+    mmap['num_indptr'] = mmap['num_indptr'] + arr.indptr.size
     return sparse.csr_matrix((data, indices, indptr), shape=arr.shape)
 
 
-def mmap_hstack(blocks: list[sparse.csr_matrix], path: pathlib.Path, dtype=None) -> sparse.csr_matrix:
+def mmap_hstack(blocks: list[sparse.csr_matrix], path: pathlib.Path) -> sparse.csr_matrix:
     if len(blocks) == 0:
         return sparse.csr_matrix((0, 0))
 
-    if dtype is None:
-        dtype = np.find_common_type([b.data.dtype for b in blocks], [])
+    info = blinkless.sparse._check_hstack_rr(blocks)
 
-    m = blocks[0].shape[0]
-    n = 0
-    nnz = 0
-    for b in blocks:
-        if b.shape[0] != m:
-            raise 'all the input matrix dimensions for the concatenation axis must match exactly'
-        n = n + b.shape[1]
-        nnz = nnz + b.data.size
-
-    data = np.memmap(path.parent / f'{path.name}.data', dtype=dtype,
-                     mode='w+', shape=nnz)
+    data = np.memmap(path.parent / f'{path.name}.data', dtype=info['dtype'],
+                     mode='w+', shape=info['nnz'])
     indices = np.memmap(path.parent / f'{path.name}.indices', dtype=np.int32,
-                        mode='w+', shape=nnz)
+                        mode='w+', shape=info['nnz'])
     indptr = np.memmap(path.parent / f'{path.name}.indptr', dtype=np.int32,
-                       mode='w+', shape=m+1)
+                       mode='w+', shape=info['m']+1)
 
-    pbar = tqdm(total=m*len(blocks))
-    top = 0
-    for row in range(m):
-        indptr[row] = top
-        col = 0
-        for b in blocks:
-            br = b[row]
-            brnnz = br.nnz
-            data[top:top+brnnz] = br.data
-            indices[top:top+brnnz] = br.indices + col
+    blinkless.stack_impl.hstack_rr_to(info['m'],
+                                      info['cols_array'],
+                                      info['data_list'],
+                                      info['indices_list'],
+                                      info['indptr_list'],
+                                      data,
+                                      indices,
+                                      indptr)
 
-            top = top + brnnz
-            col = col + b.shape[1]
-
-            pbar.update()
-
-    indptr[-1] = nnz
-
-    return sparse.csr_matrix((data, indices, indptr), shape=(m, n))
+    return sparse.csr_matrix((data, indices, indptr), shape=(info['m'], info['n']))
