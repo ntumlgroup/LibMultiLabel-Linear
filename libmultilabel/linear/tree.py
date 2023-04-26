@@ -298,14 +298,21 @@ def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatMode
 def as_mmap(arr: sparse.csr_matrix,
             mmap: dict[str, pathlib.Path | int]
             ) -> sparse.csr_matrix:
-    return arr
     path = mmap['path']
-    data = np.memmap(path.parent / f'{path.name}.data', dtype=mmap['dtype'],
-                     mode='w+', shape=arr.data.shape, offset=mmap['num_data']*mmap['itemsize'])
-    indices = np.memmap(path.parent / f'{path.name}.indices', dtype=np.int32,
-                        mode='w+', shape=arr.indices.shape, offset=mmap['num_data']*4)
-    indptr = np.memmap(path.parent / f'{path.name}.indptr', dtype=np.int32,
-                       mode='w+', shape=arr.indptr.shape, offset=mmap['num_indptr']*4)
+    data_path = path.parent / f'{path.name}.data'
+    indices_path = path.parent / f'{path.name}.indices'
+    indptr_path = path.parent / f'{path.name}.indptr'
+
+    data_path.touch()
+    indices_path.touch()
+    indptr_path.touch()
+
+    data = np.memmap(data_path, dtype=mmap['dtype'],
+                     mode='r+', shape=arr.data.shape, offset=mmap['num_data']*mmap['itemsize'])
+    indices = np.memmap(indices_path, dtype=np.int32,
+                        mode='r+', shape=arr.indices.shape, offset=mmap['num_data']*4)
+    indptr = np.memmap(indptr_path, dtype=np.int32,
+                       mode='r+', shape=arr.indptr.shape, offset=mmap['num_indptr']*4)
     data[:] = arr.data
     indices[:] = arr.indices
     indptr[:] = arr.indptr
