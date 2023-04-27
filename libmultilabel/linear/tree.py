@@ -162,6 +162,14 @@ def train_tree(y: sparse.csr_matrix,
         'itemsize': 8,  # numpy is dumb
     }
 
+    data_path = path.parent / f'{path.name}.data'
+    indices_path = path.parent / f'{path.name}.indices'
+    indptr_path = path.parent / f'{path.name}.indptr'
+
+    data_path.touch()
+    indices_path.touch()
+    indptr_path.touch()
+
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
         _train_node(y[relevant_instances],
@@ -298,26 +306,6 @@ def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatMode
 def as_mmap(arr: sparse.csr_matrix,
             mmap: dict[str, pathlib.Path | int]
             ) -> sparse.csr_matrix:
-    path = mmap['path']
-    data_path = path.parent / f'{path.name}.data'
-    indices_path = path.parent / f'{path.name}.indices'
-    indptr_path = path.parent / f'{path.name}.indptr'
-
-    data_path.touch()
-    indices_path.touch()
-    indptr_path.touch()
-
-    data = np.memmap(data_path, dtype=mmap['dtype'],
-                     mode='r+', shape=arr.data.shape, offset=mmap['num_data']*mmap['itemsize'])
-    indices = np.memmap(indices_path, dtype=np.int32,
-                        mode='r+', shape=arr.indices.shape, offset=mmap['num_data']*4)
-    indptr = np.memmap(indptr_path, dtype=np.int32,
-                       mode='r+', shape=arr.indptr.shape, offset=mmap['num_indptr']*4)
-    data[:] = arr.data
-    indices[:] = arr.indices
-    indptr[:] = arr.indptr
-    mmap['num_data'] = mmap['num_data'] + arr.data.size
-    mmap['num_indptr'] = mmap['num_indptr'] + arr.indptr.size
     return sparse.csr_matrix((data, indices, indptr), shape=arr.shape)
 
 

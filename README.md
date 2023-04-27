@@ -23,7 +23,7 @@ pip install blinkless
 
 Currently there is an issue with file handles. You will need to do
 ```bash
-ulimit -n $(ulimit -Hn)
+ulimit -Sn $(ulimit -Hn)
 ```
 
 ## Documentation

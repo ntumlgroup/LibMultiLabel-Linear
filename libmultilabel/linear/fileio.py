@@ -49,9 +49,13 @@ class SpillCSR:
                  dtype: type
                  ):
         self.prefix = pathlib.Path(prefix)
-        self.rows = rows
         self.chunk_size = chunk_size
         self.dtype = dtype
+
+        # shape[1] is shared with spills
+        self.shape = Array(f'{self.prefix}.shape', 2, dtype=np.int32)
+        self.shape[0] = rows
+        self.shape[1] = 0
 
         self.data = Array(
             f'{self.prefix}.data',
@@ -59,14 +63,12 @@ class SpillCSR:
             dtype=dtype,
         )
         self.indices = Array(
-            f'{self.prefix}.data',
+            f'{self.prefix}.indices',
             shape=(rows, chunk_size),
             dtype=np.int32,
         )
         self.endptr = Array(f'{self.prefix}.endptr',
                             shape=rows, dtype=np.int32)
-        # for reference semantics, col_offset is shared with spills
-        self.col_offset = np.zeros(1, dtype=np.int32)
 
         self.spill = np.full(rows, None, dtype=object)
 
@@ -75,7 +77,7 @@ class SpillCSR:
             raise ValueError('dimension mismatch')
 
         self._append_parts(arr.data, arr.indices, arr.indptr)
-        self.col_offset += arr.shape[1]
+        self.shape[1] += arr.shape[1]
 
     def _append_parts(self,
                       data: np.ndarray,
@@ -91,14 +93,14 @@ class SpillCSR:
             if rem >= nnz:
                 self.data[i, j:j+nnz] = data[begin:end]
                 self.indices[i, j:j+nnz] = indices[begin:end]
-                self.indices[i, j:j+nnz] += self.col_offset[0]
+                self.indices[i, j:j+nnz] += self.shape[1]
                 self.endptr[i] += nnz
 
             elif self.spill[i] is None:
                 mid = begin + rem
                 self.data[i, j:j+rem] = data[begin:mid]
                 self.indices[i, j:j+rem] = indices[begin:mid]
-                self.indices[i, j:j+rem] += self.col_offset[0]
+                self.indices[i, j:j+rem] += self.shape[1]
                 self.endptr[i] += rem
 
                 spill = SpillCSR(
@@ -107,7 +109,7 @@ class SpillCSR:
                     self.chunk_size,
                     self.dtype,
                 )
-                spill.col_offset = self.col_offset
+                spill.shape = self.shape
                 spill._append_parts(
                     data[mid:end],
                     indices[mid:end],
@@ -132,12 +134,16 @@ class SpillCSR:
         data = Array(f'{prefix}.data', shape=nnz, dtype=self.dtype)
         indices = Array(f'{prefix}.indices', shape=nnz, dtype=np.int32)
         indptr = Array(f'{prefix}.indptr', shape=self.rows, dtype=np.int32)
+        shape = Array(f'{prefix}.shape', shape=2, dtype=np.int32)
+        shape[:] = self.shape
 
         top = 0
         for i in range(self.rows):
             indptr[i] = top
             top = self._marshal_to(data, indices, top, i)
         indptr[-1] = nnz
+
+        return sparse.csr_matrix((data, indices, indptr), shape=(shape[0], shape[1]))
 
     def _marshal_to(self, data: Array, indices: Array, top: int, row: int) -> int:
         j = self.endptr[row]
