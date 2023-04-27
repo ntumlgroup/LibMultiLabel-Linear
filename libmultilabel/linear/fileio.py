@@ -14,21 +14,20 @@ class Array:
                  dtype: type,
                  exist_ok: bool = False,
                  ):
+        self.shape = shape if isinstance(shape, tuple) else (shape,)
+        self.dtype = dtype
+
         self.path = pathlib.Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(exist_ok=exist_ok)
-        self.shape = shape if isinstance(shape, tuple) else (shape,)
-        self.size = math.prod(self.shape)
-        self.file = open(path, 'r+b')
-        self.file.truncate(self.size)
-        self.mmap = mmap.mmap(
-            self.file.fileno(),
-            self.size * dtype.__itemsize__,
-        )
-        self.view = np.frombuffer(
-            self.mmap,
-            dtype=dtype,
-        )
+        self._open()
+
+    def resize(self, n):
+        if len(self.shape) != 1:
+            raise ValueError(f'cannot resize {len(self.shape)}-D array')
+        self.close()
+        self.shape = (n,)
+        self._open()
 
     def close(self):
         self.mmap.close()
@@ -39,6 +38,20 @@ class Array:
 
     def __setitem__(self, *args):
         return self.view.__setitem__(*args)
+
+    def _open(self):
+        size = math.prod(self.shape)
+        itemsize = np.dtype(self.dtype).itemsize
+        self.file = open(self.path, 'r+b')
+        self.file.truncate(size * itemsize)
+        self.mmap = mmap.mmap(
+            self.file.fileno(),
+            size * itemsize,
+        )
+        self.view = np.frombuffer(
+            self.mmap,
+            dtype=self.dtype,
+        )
 
 
 class SpillCSR:
