@@ -73,11 +73,11 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     if model.name == 'mmap-tree':
         mmap = model.mmap
         path = mmap['root'] / 'flat_model'
-        data = np.memmap(path.parent / f'{path.name}.data', mode='r',
+        data = np.memmap(f'{path}.data', mode='r',
                          dtype=mmap['dtype'], shape=mmap['nnz'])
-        indices = np.memmap(path.parent / f'{path.name}.indices', mode='r',
+        indices = np.memmap(f'{path}.indices', mode='r',
                             dtype=np.int32, shape=mmap['nnz'])
-        indptr = np.memmap(path.parent / f'{path.name}.indptr', mode='r',
+        indptr = np.memmap(f'{path}.indptr', mode='r',
                            dtype=np.int32, shape=mmap['shape'][0] + 1)
         model.flat_model.weights = sparse.csr_matrix(
             (data, indices, indptr), mmap['shape'])

@@ -14,7 +14,6 @@ import blinkless.sparse
 import blinkless.stack_impl
 
 from . import linear, fileio
-from ..common_utils import AttributeDict
 
 __all__ = ['train_tree']
 
@@ -171,26 +170,25 @@ def train_tree(y: sparse.csr_matrix,
         shape=num_nodes * (x.shape[1] + 1),
         dtype=np.int32,
     )
-    nodes_info = AttributeDict({
+    mmap_info = {
         'num_data': 0,
         'num_indptr': 0,
         'chunk_size': chunk_size,
         'data': data,
         'indices': indices,
         'indptr': indptr,
-    })
+    }
 
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
         _train_node(y[relevant_instances],
-                    x[relevant_instances], options, node, nodes_info)
+                    x[relevant_instances], options, node, mmap_info)
         pbar.update()
 
     root.dfs(visit)
     pbar.close()
 
-    flat_model, weight_map = _flatten_model(
-        root, mmap_root / 'flat_model', nodes_info)
+    flat_model, weight_map = _flatten_model(root, mmap_root / 'flat_model')
     return TreeModel(root, flat_model, weight_map, mmap_root)
 
 
@@ -240,7 +238,7 @@ def _train_node(y: sparse.csr_matrix,
                 x: sparse.csr_matrix,
                 options: str,
                 node: Node,
-                nodes_info: dict,
+                mmap_info: dict,
                 ):
     """If node is internal, computes the metalabels representing each child and trains
     on the metalabels. Otherwise, train on y.
@@ -268,14 +266,11 @@ def _train_node(y: sparse.csr_matrix,
 
     node.model.weights = _as_mmap(
         sparse.csr_matrix(node.model.weights),
-        nodes_info,
+        mmap_info,
     )
 
 
-def _flatten_model(root: Node,
-                   flat_model_prefix: pathlib.Path,
-                   nodes_info: AttributeDict,
-                   ) -> tuple[linear.FlatModel, np.ndarray]:
+def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatModel, np.ndarray]:
     """Flattens tree weight matrices into a single weight matrix. The flattened weight
     matrix is used to predict all possible values, which is cached for beam search.
     This pessimizes complexity but is faster in practice.
@@ -307,7 +302,7 @@ def _flatten_model(root: Node,
 
     model = linear.FlatModel(
         name='flattened-tree',
-        weights=_mmap_hstack(weights, flat_model_prefix, nodes_info),
+        weights=_mmap_hstack(weights, mmap_path),
         bias=bias,
         thresholds=0,
     )
@@ -319,42 +314,57 @@ def _flatten_model(root: Node,
     return model, weight_map
 
 
+class dummy:
+    """Dummy class used to skip unnecessary checks on csr_matrix.
+    """
+
+    def __init__(self, triplet, shape):
+        self.data = triplet[0]
+        self.indices = triplet[1]
+        self.indptr = triplet[2]
+        self.shape = shape
+        self.nnz = self.data.size
+
+    @staticmethod
+    def csr_matrix(triplet: tuple, shape: tuple[int, int]):
+        return dummy(triplet, shape)
+
+
 def _as_mmap(arr: sparse.csr_matrix,
-             nodes_info: dict,
-             ) -> AttributeDict:
+             mmap_info: dict,
+             ) -> sparse.csr_matrix:
     nnz = arr.nnz
-    num_data = nodes_info.num_data
-    num_indptr = nodes_info.num_indptr
-    buffer_size = nodes_info.data.shape[0]
+    num_data = mmap_info['num_data']
+    num_indptr = mmap_info['num_indptr']
+    mm_data = mmap_info['data']
+    mm_indices = mmap_info['indices']
+    mm_indptr = mmap_info['indptr']
+    buffer_size = mm_data.shape[0]
 
     if buffer_size < num_data + nnz:
-        nodes_info.data.resize(buffer_size * 2)
-        nodes_info.indices.resize(buffer_size * 2)
+        buffer_size = 2 << (num_data + nnz - 1).bit_length()
+        mm_data.resize(buffer_size)
+        mm_indices.resize(buffer_size)
 
-    nodes_info.data[num_data:num_data+nnz] = arr.data
-    nodes_info.indices[num_data:num_data+nnz] = arr.indices
-    nodes_info.indptr[num_indptr:num_indptr+arr.shape[1]+1] = arr.indptr
+    data = mm_data[num_data:num_data+nnz]
+    indices = mm_indices[num_data:num_data+nnz]
+    indptr = mm_indptr[num_indptr:num_indptr+arr.shape[0]+1]
 
-    nodes_info.num_data += nnz
-    nodes_info.num_indptr += arr.shape[1] + 1
+    data[:] = arr.data
+    indices[:] = arr.indices
+    indptr[:] = arr.indptr
 
-    # cannot keep references to fileio.Array because python is a firetrucking dumbass
-    return AttributeDict({
-        'num_data': num_data,
-        'num_indptr': num_indptr,
-        'nnz': nnz,
-        'shape': arr.shape,
-    })
+    mmap_info['num_data'] += nnz
+    mmap_info['num_indptr'] += arr.shape[0] + 1
+
+    return dummy.csr_matrix((data, indices, indptr), shape=arr.shape)
 
 
-def _mmap_hstack(blocks: list[AttributeDict],
-                 prefix: pathlib.Path,
-                 nodes_info: AttributeDict,
-                 ) -> sparse.csr_matrix:
+def _mmap_hstack(blocks: list[sparse.csr_matrix], prefix: pathlib.Path) -> sparse.csr_matrix:
     if len(blocks) == 0:
         return sparse.csr_matrix((0, 0))
 
-    info = _hstack_info(blocks, nodes_info)
+    info = _hstack_info(blocks)
 
     data = fileio.Array(
         f'{prefix}.data',
@@ -372,19 +382,24 @@ def _mmap_hstack(blocks: list[AttributeDict],
         shape=info['m']+1
     )
 
-    blinkless.stack_impl.hstack_rr_to(info['m'],
-                                      info['cols_array'],
-                                      info['data_list'],
-                                      info['indices_list'],
-                                      info['indptr_list'],
-                                      data,
-                                      indices,
-                                      indptr)
+    blinkless.stack_impl.hstack_rr_to(
+        info['m'],
+        info['cols_array'],
+        info['data_list'],
+        info['indices_list'],
+        info['indptr_list'],
+        data.view,
+        indices.view,
+        indptr.view
+    )
 
-    return sparse.csr_matrix((data, indices, indptr), shape=(info['m'], info['n']))
+    return sparse.csr_matrix((data.view, indices.view, indptr.view),
+                             shape=(info['m'], info['n']))
 
 
-def _hstack_info(blocks: list[AttributeDict], nodes_info: AttributeDict):
+def _hstack_info(blocks: list[sparse.csr_matrix]):
+    """Copy of blinkless.sparse._check_hstack_rr except without checks.
+    """
     m = blocks[0].shape[0]
     n = 0
     nnz = 0
@@ -402,16 +417,10 @@ def _hstack_info(blocks: list[AttributeDict], nodes_info: AttributeDict):
         n = n + block.shape[1]
         nnz = nnz + block.nnz
         cols_list.append(block.shape[1])
-
-        data = nodes_info.data[block.num_data:block.num_data+block.nnz]
-        indices = nodes_info.indices[block.num_data:block.num_data+block.nnz]
-        indptr = nodes_info.indptr[block.num_indptr:
-                                   block.num_indptr+block.shape[1]+1]
-
-        data_list.append(data)
-        indices_list.append(indices)
-        indptr_list.append(indptr)
-        dtypes_list.append(data.dtype)
+        data_list.append(block.data)
+        indices_list.append(block.indices)
+        indptr_list.append(block.indptr)
+        dtypes_list.append(block.data.dtype)
 
     dtype = np.find_common_type(dtypes_list, [])
 

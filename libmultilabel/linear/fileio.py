@@ -18,14 +18,15 @@ class Array:
         self.dtype = dtype
 
         self.path = pathlib.Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.touch(exist_ok=exist_ok)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch(exist_ok=exist_ok)
         self._open()
 
     def resize(self, n):
         if len(self.shape) != 1:
             raise ValueError(f'cannot resize {len(self.shape)}-D array')
-        self.close()
+        # python is insane and closing is impossible, we'll just leak file handles left and right
+        # self.close()
         self.shape = (n,)
         self._open()
 
