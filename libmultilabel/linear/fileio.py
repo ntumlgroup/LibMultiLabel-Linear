@@ -1,4 +1,5 @@
 from __future__ import annotations
+import gc
 import math
 
 import mmap
@@ -31,6 +32,8 @@ class Array:
         self._open()
 
     def close(self):
+        del self.view
+        gc.collect()
         self.mmap.close()
         self.file.close()
 
@@ -39,6 +42,9 @@ class Array:
 
     def __setitem__(self, *args):
         return self.view.__setitem__(*args)
+
+    def __str__(self):
+        return self.view.__str__()
 
     def _open(self):
         size = math.prod(self.shape)

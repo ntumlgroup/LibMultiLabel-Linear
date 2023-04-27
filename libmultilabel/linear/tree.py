@@ -1,19 +1,21 @@
 from __future__ import annotations
+import hashlib
+
+import logging
 import pathlib
-
-from typing import Callable
+import pickle
 import uuid
+from typing import Callable
 
+import blinkless.sparse
+import blinkless.stack_impl
 import numpy as np
 import scipy.sparse as sparse
 import sklearn.cluster
 import sklearn.preprocessing
 from tqdm import tqdm
 
-import blinkless.sparse
-import blinkless.stack_impl
-
-from . import linear, fileio
+from . import fileio, linear
 
 __all__ = ['train_tree']
 
@@ -138,10 +140,28 @@ def train_tree(y: sparse.csr_matrix,
     Returns:
         A model which can be used in predict_values.
     """
-    label_representation = (y.T * x).tocsr()
-    label_representation = sklearn.preprocessing.normalize(
-        label_representation, norm='l2', axis=1)
-    root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    random_state = np.random.get_state()[1]
+    tree_fingerprint = str((
+        *y.shape, *x.shape, y.nnz, x.nnz, random_state, x[0].data, x[-1].data
+    ))
+    h = hashlib.sha256()
+    h.update(tree_fingerprint.encode('utf-8'))
+    cache_path = pathlib.Path(f'tree_cache/{h.hexdigest()[:32]}.pickle')
+
+    if cache_path.is_file():
+        logging.info(f'loading tree (no weights) from cache "{cache_path}"')
+        with open(cache_path, 'rb') as f:
+            root = pickle.load(f)
+    else:
+        label_representation = (y.T * x).tocsr()
+        label_representation = sklearn.preprocessing.normalize(
+            label_representation, norm='l2', axis=1)
+
+        root = _build_tree(label_representation,
+                           np.arange(y.shape[1]), 0, K, dmax)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cache_path, 'wb') as f:
+            pickle.dump(root, f)
 
     num_nodes = 0
 
@@ -194,7 +214,7 @@ def train_tree(y: sparse.csr_matrix,
 
 def _build_tree(label_representation: sparse.csr_matrix,
                 label_map: np.ndarray,
-                d: int, K: int, dmax: int
+                d: int, K: int, dmax: int,
                 ) -> Node:
     """Builds the tree recursively by kmeans clustering.
 
