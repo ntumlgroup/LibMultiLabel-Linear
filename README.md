@@ -21,7 +21,7 @@ git clone https://github.com/ntumlgroup/blinkless
 pip install blinkless
 ```
 
-Currently there is an issue with file handles. You will need to do
+Currently there may be issues with file handles. If you run into an error about too many file handles, do
 ```bash
 ulimit -Sn $(ulimit -Hn)
 ```

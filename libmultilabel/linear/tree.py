@@ -174,6 +174,8 @@ def train_tree(y: sparse.csr_matrix,
     mmap_root.mkdir(parents=True, exist_ok=True)
     pbar = tqdm(total=num_nodes, disable=not verbose)
 
+    has_bias = "-B" in options
+
     chunk_size = 4096
     data = fileio.Array(
         mmap_root / 'nodes.data',
@@ -187,7 +189,7 @@ def train_tree(y: sparse.csr_matrix,
     )
     indptr = fileio.Array(
         mmap_root / 'nodes.indptr',
-        shape=num_nodes * (x.shape[1] + 1),
+        shape=num_nodes * (x.shape[1] + has_bias + 1),
         dtype=np.int32,
     )
     mmap_info = {
