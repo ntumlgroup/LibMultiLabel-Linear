@@ -79,12 +79,7 @@ class TreeModel:
         """
         # number of instances * number of labels + total number of metalabels
         all_preds = linear.predict_values(self.flat_model, x)
-        return np.vstack(
-            [
-                self._beam_search(all_preds[i], beam_width)
-                for i in range(all_preds.shape[0])
-            ]
-        )
+        return np.vstack([self._beam_search(all_preds[i], beam_width) for i in range(all_preds.shape[0])])
 
     def _beam_search(self, instance_preds: np.ndarray, beam_width: int) -> np.ndarray:
         """Predict with beam search using cached decision values for a single instance.
@@ -107,9 +102,7 @@ class TreeModel:
                 if node.isLeaf():
                     next_level.append((node, score))
                     continue
-                slice = np.s_[
-                    self.weight_map[node.index] : self.weight_map[node.index + 1]
-                ]
+                slice = np.s_[self.weight_map[node.index] : self.weight_map[node.index + 1]]
                 pred = instance_preds[slice]
                 children_score = score - np.maximum(0, 1 - pred) ** 2
                 next_level.extend(zip(node.children, children_score.tolist()))
@@ -149,9 +142,7 @@ def train_tree(
         A model which can be used in predict_values.
     """
     random_state = np.random.get_state()[1]
-    tree_fingerprint = str(
-        (*y.shape, *x.shape, y.nnz, x.nnz, random_state, x[0].data, x[-1].data)
-    )
+    tree_fingerprint = str((*y.shape, *x.shape, y.nnz, x.nnz, random_state, x[0].data, x[-1].data))
     h = hashlib.sha256()
     h.update(tree_fingerprint.encode("utf-8"))
     cache_path = pathlib.Path(f"tree_cache/{h.hexdigest()[:32]}.pickle")
@@ -162,9 +153,7 @@ def train_tree(
             root = pickle.load(f)
     else:
         label_representation = (y.T * x).tocsr()
-        label_representation = sklearn.preprocessing.normalize(
-            label_representation, norm="l2", axis=1
-        )
+        label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
 
         root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -212,9 +201,7 @@ def train_tree(
 
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
-        _train_node(
-            y[relevant_instances], x[relevant_instances], options, node, mmap_info
-        )
+        _train_node(y[relevant_instances], x[relevant_instances], options, node, mmap_info)
         pbar.update()
 
     root.dfs(visit)
@@ -249,7 +236,7 @@ def _build_tree(
     metalabels = (
         sklearn.cluster.KMeans(
             K,
-            random_state=np.random.randint(2**32),
+            random_state=np.random.randint(2**31 - 1),
             n_init=1,
             max_iter=300,
             tol=0.0001,
@@ -291,10 +278,7 @@ def _train_node(
         # meta_y[i, j] is 1 if the ith instance is relevant to the jth child.
         # getnnz returns an ndarray of shape number of instances.
         # This must be reshaped into number of instances * 1 to be interpreted as a column.
-        meta_y = [
-            y[:, child.label_map].getnnz(axis=1)[:, np.newaxis] > 0
-            for child in node.children
-        ]
+        meta_y = [y[:, child.label_map].getnnz(axis=1)[:, np.newaxis] > 0 for child in node.children]
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, options, False)
 
@@ -304,9 +288,7 @@ def _train_node(
     )
 
 
-def _flatten_model(
-    root: Node, mmap_path: pathlib.Path
-) -> tuple[linear.FlatModel, np.ndarray]:
+def _flatten_model(root: Node, mmap_path: pathlib.Path) -> tuple[linear.FlatModel, np.ndarray]:
     """Flattens tree weight matrices into a single weight matrix. The flattened weight
     matrix is used to predict all possible values, which is cached for beam search.
     This pessimizes complexity but is faster in practice.
@@ -395,9 +377,7 @@ def _as_mmap(
     return dummy.csr_matrix((data, indices, indptr), shape=arr.shape)
 
 
-def _mmap_hstack(
-    blocks: list[sparse.csr_matrix], prefix: pathlib.Path
-) -> sparse.csr_matrix:
+def _mmap_hstack(blocks: list[sparse.csr_matrix], prefix: pathlib.Path) -> sparse.csr_matrix:
     if len(blocks) == 0:
         return sparse.csr_matrix((0, 0))
 
@@ -418,9 +398,7 @@ def _mmap_hstack(
         indptr.view,
     )
 
-    return sparse.csr_matrix(
-        (data.view, indices.view, indptr.view), shape=(info["m"], info["n"])
-    )
+    return sparse.csr_matrix((data.view, indices.view, indptr.view), shape=(info["m"], info["n"]))
 
 
 def _hstack_info(blocks: list[sparse.csr_matrix]):
@@ -435,10 +413,7 @@ def _hstack_info(blocks: list[sparse.csr_matrix]):
     dtypes_list = []
     for block in blocks:
         if block.shape[0] != m:
-            raise ValueError(
-                "all the input matrix dimensions for the concatenation"
-                "axis must match exactly"
-            )
+            raise ValueError("all the input matrix dimensions for the concatenation" "axis must match exactly")
         n = n + block.shape[1]
         nnz = nnz + block.nnz
         cols_list.append(block.shape[1])
