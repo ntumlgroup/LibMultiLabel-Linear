@@ -173,6 +173,7 @@ class TorchTrainer:
                 silent=self.config.silent,
                 save_k_predictions=self.config.save_k_predictions,
                 shuffle=self.config.shuffle, # LAAT
+                patience=self.config.patience, # LAAT
             )
 
     def _get_dataset_loader(self, split, shuffle=False):

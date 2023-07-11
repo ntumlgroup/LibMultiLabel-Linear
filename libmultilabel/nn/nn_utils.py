@@ -53,6 +53,7 @@ def init_model(
     silent=False,
     save_k_predictions=0,
     shuffle=False, # LAAT
+    patience=6, # LAAT
 ):
     """Initialize a `Model` class for initializing and training a neural network.
 
@@ -110,7 +111,15 @@ def init_model(
         silent=silent,
         save_k_predictions=save_k_predictions,
         shuffle=shuffle, # LAAT
+        patience=patience, # LAAT
     )
+
+    print('##### Model parameters:')
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(f'{name}: {param.data.shape}')
+            # print(param.data)
+    print('#########################\n')
     return model
 
 

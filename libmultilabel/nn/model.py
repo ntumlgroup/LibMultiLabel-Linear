@@ -43,6 +43,7 @@ class MultiLabelModel(pl.LightningModule):
         save_k_predictions=0,
         val_metric='Micro-F1', # LAAT
         shuffle=True,
+        patience=6, # LAAT
         **kwargs
     ):
         super().__init__()
@@ -65,6 +66,8 @@ class MultiLabelModel(pl.LightningModule):
         self.val_metric = val_metric # LAAT
         self.shuffle = shuffle # LAAT
         self.num_classes = num_classes
+
+        self.patience = patience # LAAT (for lr scheduler)
 
     @abstractmethod
     def shared_step(self, batch):
@@ -101,7 +104,7 @@ class MultiLabelModel(pl.LightningModule):
                     "scheduler": optim.lr_scheduler.ReduceLROnPlateau(
                         optimizer, mode="max",
                         factor=0.9,
-                        patience=5,
+                        patience=self.patience-1,  # EUR-Lex: 9, MIMIC: 5
                         min_lr=0.0001),
                     "monitor": self.val_metric,
                 },
