@@ -400,6 +400,7 @@ def get_embedding_weights_from_file(word_dict, embed_file, silent=False, cache=N
     embedding_weights = [unk_vector] * (len(word_dict))
     embedding_weights[0] = np.zeros(embed_size)
 
+    # # Uncomment for EUR-Lex (WIP)
     # embedding_weights = torch.zeros(len(word_dict), embed_size)
     # if load_embedding_from_file:
     #     # Add UNK embedding
@@ -427,4 +428,5 @@ def get_embedding_weights_from_file(word_dict, embed_file, silent=False, cache=N
     # with numpy.array() before converting to a tensor.`
     embedding_weights = np.array(embedding_weights, dtype=np.float32)
     return torch.FloatTensor(embedding_weights) # LAAT
+    # # Uncomment for EUR-Lex
     # return embedding_weights
