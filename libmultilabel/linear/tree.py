@@ -385,7 +385,7 @@ def _mmap_hstack(blocks: list[sparse.csr_matrix], prefix: pathlib.Path) -> spars
 
     data = fileio.Array(f"{prefix}.data", dtype=info["dtype"], shape=info["nnz"])
     indices = fileio.Array(f"{prefix}.indices", dtype=np.int32, shape=info["nnz"])
-    indptr = fileio.Array(f"{prefix}.indptr", dtype=np.int32, shape=info["m"] + 1)
+    indptr = fileio.Array(f"{prefix}.indptr", dtype=np.int64, shape=info["m"] + 1)
 
     blinkless.stack_impl.hstack_rr_to(
         info["m"],
