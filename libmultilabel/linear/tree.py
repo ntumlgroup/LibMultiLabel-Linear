@@ -382,10 +382,11 @@ def _mmap_hstack(blocks: list[sparse.csr_matrix], prefix: pathlib.Path) -> spars
         return sparse.csr_matrix((0, 0))
 
     info = _hstack_info(blocks)
+    intptr_type = np.int64 if info["nnz"] >= 2**31 else np.int32
 
     data = fileio.Array(f"{prefix}.data", dtype=info["dtype"], shape=info["nnz"])
     indices = fileio.Array(f"{prefix}.indices", dtype=np.int32, shape=info["nnz"])
-    indptr = fileio.Array(f"{prefix}.indptr", dtype=np.int64, shape=info["m"] + 1)
+    indptr = fileio.Array(f"{prefix}.indptr", dtype=intptr_type, shape=info["m"] + 1)
 
     blinkless.stack_impl.hstack_rr_to(
         info["m"],
@@ -428,7 +429,7 @@ def _hstack_info(blocks: list[sparse.csr_matrix]):
         "m": m,
         "n": n,
         "nnz": nnz,
-        "cols_array": np.array(cols_list),
+        "cols_array": np.array(cols_list, np.int32),
         "data_list": data_list,
         "indices_list": indices_list,
         "indptr_list": indptr_list,
