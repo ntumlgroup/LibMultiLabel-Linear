@@ -104,7 +104,7 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
     prev_sim = np.inf
     for _ in range(max_iter):
         centroid_diff = centroids[1] - centroids[0]
-        similarity_diff = (centroid_diff * x.T).toarray().ravel()  # number of points
+        similarity_diff = (x * centroid_diff.T).toarray().ravel()  # number of points
         similarity_rank = np.argsort(similarity_diff)
 
         cluster = np.zeros(num_points, dtype=int)
