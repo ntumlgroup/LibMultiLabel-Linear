@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+import os
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -60,6 +61,8 @@ class MultiLabelModel(pl.LightningModule):
 
         # dump log
         self.log_path = log_path
+        self.loss_log = open('%s/loss_log'%os.path.dirname(self.log_path), 'w')
+        print("epoch,batch_idx,loss", file=self.loss_log, flush=True)
         self.silent = silent
         self.save_k_predictions = save_k_predictions
 
@@ -105,6 +108,9 @@ class MultiLabelModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, _ = self.shared_step(batch)
+        print(f"{self.current_epoch},{batch_idx},{loss.item():.8f}", file=self.loss_log, flush=True)
+        if np.isinf(loss.item()) or np.isnan(loss.item()):
+            exit()
         return loss
 
     def validation_step(self, batch, batch_idx):
