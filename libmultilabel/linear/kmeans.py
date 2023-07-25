@@ -39,6 +39,7 @@ def spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) -> np.nda
                 centroids[i] = xcluster.sum(axis=0).A1
             else:
                 centroids[i] = x[np.random.choice(np.arange(num_points))].toarray()
+
         # should centroids be stored as sparse matrices?
         centroids = sparse.csr_matrix(centroids)
         centroids = sklearn.preprocessing.normalize(centroids, norm="l2", axis=1)
@@ -116,11 +117,8 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
 
         centroids = np.zeros(centroids.shape)
         for i in range(2):
-            xcluster = x[cluster == i]
-            if xcluster.shape[0] > 0:
-                centroids[i] = xcluster.sum(axis=0).A1
-            else:
-                centroids[i] = x[np.random.choice(np.arange(num_points))].toarray()
+            centroids[i] = x[cluster == i].sum(axis=0).A1
+
         # should centroids be stored as sparse matrices?
         centroids = sparse.csr_matrix(centroids)
         centroids = sklearn.preprocessing.normalize(centroids, norm="l2", axis=1)
@@ -162,6 +160,7 @@ def lloyd(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) -> np.ndarray
                 centroids[i] = xcluster.mean(axis=0).A1
             else:
                 centroids[i] = x[np.random.choice(np.arange(num_points))].toarray()
+
         # should centroids be stored as sparse matrices?
         centroids = sparse.csr_matrix(centroids)
         prev_dist = avg_dist
