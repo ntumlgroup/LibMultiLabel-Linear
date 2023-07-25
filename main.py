@@ -224,6 +224,14 @@ def add_all_arguments(parser):
         "--tree_max_depth", type=int, default=10, help="Maximum depth of the tree (default: %(default)s)"
     )
     parser.add_argument(
+        "--tree_clustering",
+        type=str,
+        default="spherical",
+        choices=["spherical", "balanced_spherical", "elkan"],
+        help="Clustering algorithm for building tree (default: %(default)s)",
+    )
+
+    parser.add_argument(
         "-h",
         "--help",
         action="help",

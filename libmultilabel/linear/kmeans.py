@@ -48,11 +48,11 @@ def spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) -> np.nda
 
 
 def balanced_spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) -> np.ndarray:
-    """Perform balanced spherical k-means clustering on x.
+    """Perform balanced spherical k-means clustering on x. k must be a power of 2.
 
     Args:
         x (sparse.csr_matrix): Matrix with dimensions number of points * dimension of underlying space.
-        k (int): Number of clusters. Must be a power of 2.
+        k (int): Number of clusters.
         max_iter (int): Maximum number of iterations.
         tol (float): Stopping tolerance. Lower for more optimal clustering but longer run time.
 
@@ -60,15 +60,18 @@ def balanced_spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) 
         np.ndarray: An array of cluster indices.
     """
     if k <= 0 or k & (k - 1) != 0:
-        raise ValueError(f"k={k} is not power of two")
+        raise ValueError(f"k={k} is not a power of two")
 
     num_points = x.shape[0]
+    x = sklearn.preprocessing.normalize(x, norm="l2", axis=1)
 
     def cluster_each(indices):
+        ret = []
         for index in indices:
             cluster = _balanced_spherical_2means(x[index], max_iter, tol)
             for i in range(2):
-                yield index[cluster == i]
+                ret.append(index[cluster == i])
+        return ret
 
     n = k.bit_length() - 1  # k = 2**n
     indices = [np.arange(num_points)]
@@ -83,8 +86,17 @@ def balanced_spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) 
 
 
 def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) -> np.ndarray:
+    """Perform balanced spherical 2-means clustering on x. x must be L2-normalized for each row.
+
+    Args:
+        x (sparse.csr_matrix): Matrix with dimensions number of points * dimension of underlying space.
+        max_iter (int): Maximum number of iterations.
+        tol (float): Stopping tolerance. Lower for more optimal clustering but longer run time.
+
+    Returns:
+        np.ndarray: An array of cluster indices.
+    """
     num_points = x.shape[0]
-    x = sklearn.preprocessing.normalize(x, norm="l2", axis=1)
 
     init = np.random.choice(np.arange(num_points), size=2, replace=False)
     centroids = x[init]  # 2 * dimension of underlying space
@@ -92,13 +104,13 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
     prev_sim = np.inf
     for _ in range(max_iter):
         centroid_diff = centroids[1] - centroids[0]
-        similarity_diff = (centroid_diff * x.T).toarray()  # 1 * number of points
+        similarity_diff = (centroid_diff * x.T).toarray().ravel()  # number of points
         similarity_rank = np.argsort(similarity_diff)
 
         cluster = np.zeros(num_points, dtype=int)
         cluster[similarity_rank[: num_points // 2]] = 1
 
-        avg_sim = similarity_diff * (2 * cluster - 1) / (2 * num_points)
+        avg_sim = np.mean(similarity_diff * (2 * cluster - 1)) / 2
         if prev_sim - avg_sim < tol:
             return cluster
 

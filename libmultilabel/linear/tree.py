@@ -9,6 +9,7 @@ import sklearn.preprocessing
 from tqdm import tqdm
 
 from . import linear
+from . import kmeans
 
 __all__ = ["train_tree"]
 
@@ -109,6 +110,7 @@ def train_tree(
     y: sparse.csr_matrix,
     x: sparse.csr_matrix,
     options: str = "",
+    clustering: str = "spherical",
     K=100,
     dmax=10,
     verbose: bool = True,
@@ -120,6 +122,7 @@ def train_tree(
         y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
         x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
         options (str): The option string passed to liblinear.
+        clustering (str): Clustering algorithm, one of {spherical, balanced_spherical, elkan}. Defaults to spherical.
         K (int, optional): Maximum degree of nodes in the tree. Defaults to 100.
         dmax (int, optional): Maximum depth of the tree. Defaults to 10.
         verbose (bool, optional): Output extra progress information. Defaults to True.
@@ -127,9 +130,12 @@ def train_tree(
     Returns:
         A model which can be used in predict_values.
     """
+    if clustering not in {"spherical", "balanced_spherical", "elkan"}:
+        raise ValueError(f"invalid clustering {clustering}")
+
     label_representation = (y.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
-    root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    root = _build_tree(label_representation, np.arange(y.shape[1]), clustering, 0, K, dmax)
 
     num_nodes = 0
 
@@ -153,12 +159,15 @@ def train_tree(
     return TreeModel(root, flat_model, weight_map)
 
 
-def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, d: int, K: int, dmax: int) -> Node:
+def _build_tree(
+    label_representation: sparse.csr_matrix, label_map: np.ndarray, clustering: str, d: int, K: int, dmax: int
+) -> Node:
     """Builds the tree recursively by kmeans clustering.
 
     Args:
         label_representation (sparse.csr_matrix): A matrix with dimensions number of classes under this node * number of features.
         label_map (np.ndarray): Maps 0..label_representation.shape[0] to the original label indices.
+        clustering (str): Clustering algorithm, one of {spherical, balanced_spherical, elkan}. Defaults to spherical.
         d (int): Current depth.
         K (int): Maximum degree of nodes in the tree.
         dmax (int): Maximum depth of the tree.
@@ -169,24 +178,29 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
     if d >= dmax or label_representation.shape[0] <= K:
         return Node(label_map=label_map, children=[])
 
-    metalabels = (
-        sklearn.cluster.KMeans(
-            K,
-            random_state=np.random.randint(2**31 - 1),
-            n_init=1,
-            max_iter=300,
-            tol=0.0001,
-            algorithm="elkan",
+    if clustering == "elkan":
+        metalabels = (
+            sklearn.cluster.KMeans(
+                K,
+                random_state=np.random.randint(2**31 - 1),
+                n_init=1,
+                max_iter=300,
+                tol=0.0001,
+                algorithm="elkan",
+            )
+            .fit(label_representation)
+            .labels_
         )
-        .fit(label_representation)
-        .labels_
-    )
+    elif clustering == "spherical":
+        metalabels = kmeans.spherical(label_representation, K, max_iter=300, tol=0.0001)
+    elif clustering == "balanced_spherical":
+        metalabels = kmeans.balanced_spherical(label_representation, K, max_iter=300, tol=0.0001)
 
     children = []
     for i in range(K):
         child_representation = label_representation[metalabels == i]
         child_map = label_map[metalabels == i]
-        child = _build_tree(child_representation, child_map, d + 1, K, dmax)
+        child = _build_tree(child_representation, child_map, clustering, d + 1, K, dmax)
         children.append(child)
 
     return Node(label_map=label_map, children=children)

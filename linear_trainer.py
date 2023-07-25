@@ -42,6 +42,7 @@ def linear_train(datasets, config):
             datasets["train"]["y"],
             datasets["train"]["x"],
             config.liblinear_options,
+            config.tree_clustering,
             config.tree_degree,
             config.tree_max_depth,
         )
