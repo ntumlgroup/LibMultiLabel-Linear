@@ -108,7 +108,7 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
         similarity_rank = np.argsort(similarity_diff)
 
         cluster = np.zeros(num_points, dtype=int)
-        cluster[similarity_rank[: num_points // 2]] = 1
+        cluster[similarity_rank[num_points // 2 :]] = 1
 
         avg_sim = np.mean(similarity_diff * (2 * cluster - 1)) / 2
         if prev_sim - avg_sim < tol:
