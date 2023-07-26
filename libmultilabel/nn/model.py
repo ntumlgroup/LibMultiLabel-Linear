@@ -62,8 +62,6 @@ class MultiLabelModel(pl.LightningModule):
         # dump log
         self.nan_count = 0
         self.log_path = log_path
-        self.loss_log = open('%s/loss_log'%os.path.dirname(self.log_path), 'a')
-        print("epoch,batch_idx,loss", file=self.loss_log, flush=True)
         self.silent = silent
         self.save_k_predictions = save_k_predictions
 
@@ -108,6 +106,9 @@ class MultiLabelModel(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler_config} if self.lr_scheduler else optimizer
 
     def training_step(self, batch, batch_idx):
+        if self.global_step == 0:
+            self.loss_log = open('%s/loss_log'%os.path.dirname(self.log_path), 'a')
+            print("epoch,batch_idx,loss", file=self.loss_log, flush=True)
         loss, _ = self.shared_step(batch)
         print(f"{self.current_epoch},{batch_idx},{loss.item():.8f}", file=self.loss_log, flush=True)
         if np.isinf(loss.item()) or np.isnan(loss.item()):

@@ -2,7 +2,7 @@
 
 # basic seting
 config=$1
-epochs=50
+epochs=5
 #m=0.9
 #wd=0.0
 
