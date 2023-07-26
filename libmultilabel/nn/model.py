@@ -60,8 +60,9 @@ class MultiLabelModel(pl.LightningModule):
         self.val_metric = val_metric
 
         # dump log
+        self.nan_count = 0
         self.log_path = log_path
-        self.loss_log = open('%s/loss_log'%os.path.dirname(self.log_path), 'w')
+        self.loss_log = open('%s/loss_log'%os.path.dirname(self.log_path), 'a')
         print("epoch,batch_idx,loss", file=self.loss_log, flush=True)
         self.silent = silent
         self.save_k_predictions = save_k_predictions
@@ -110,7 +111,9 @@ class MultiLabelModel(pl.LightningModule):
         loss, _ = self.shared_step(batch)
         print(f"{self.current_epoch},{batch_idx},{loss.item():.8f}", file=self.loss_log, flush=True)
         if np.isinf(loss.item()) or np.isnan(loss.item()):
-            exit()
+            self.nan_count += 1
+            if self.nan_count > 5:
+                exit()
         return loss
 
     def validation_step(self, batch, batch_idx):
