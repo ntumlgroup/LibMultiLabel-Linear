@@ -86,6 +86,8 @@ class TorchTrainer:
             limit_test_batches=config.limit_test_batches,
             search_params=search_params,
             save_checkpoints=save_checkpoints,
+            val_check_interval=config.val_check_interval,  # for AttentionXML
+            check_val_every_n_epoch=config.check_val_every_n_epoch,  # for AttentionXML
         )
         callbacks = [callback for callback in self.trainer.callbacks if isinstance(callback, ModelCheckpoint)]
         self.checkpoint_callback = callbacks[0] if callbacks else None

@@ -137,6 +137,8 @@ def init_trainer(
     search_params=False,
     save_checkpoints=True,
     swa=False,
+    val_check_interval=None,  # for AttentionXML
+    check_val_every_n_epoch=1,  # for AttentionXML
 ):
     """Initialize a torch lightning trainer.
 
@@ -204,8 +206,8 @@ def init_trainer(
         limit_val_batches=limit_val_batches,
         limit_test_batches=limit_test_batches,
         deterministic="warn",
-        val_check_interval=100,  # for attentionxml
-        check_val_every_n_epoch=None,  # for attentionxml
+        val_check_interval=val_check_interval,  # for attentionxml
+        check_val_every_n_epoch=check_val_every_n_epoch,  # for attentionxml
     )
     return trainer
 

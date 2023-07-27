@@ -25,6 +25,9 @@ eval_batch_size: 40
 monitor_metrics: ['Another-Macro-F1', 'Macro-F1', 'Micro-F1', 'P@1', 'P@5', 'RP@5', 'nDCG@5']
 val_metric: nDCG@5
 val_size: 200
+# # uncomment to do validation every 100 batches
+# val_check_interval: 100
+# check_val_every_n_epoch: null
 
 # model
 model_name: AttentionRNN

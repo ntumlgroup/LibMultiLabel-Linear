@@ -108,6 +108,17 @@ def add_all_arguments(parser):
         action="store_true",
         help="Whether the embeddings of each word is normalized to a unit vector (default: %(default)s)",
     )
+    parser.add_argument(
+        "--val_check_interval",
+        default=None,
+        help="Number of steps for validation (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--check_val_every_n_epoch",
+        type=int,
+        default=1,
+        help="Number of epochs for validation, `None` means no validation on epoch end (default: %(default)s)",
+    )
 
     # model
     parser.add_argument("--model_name", default="unnamed_model", help="Model to be used (default: %(default)s)")
