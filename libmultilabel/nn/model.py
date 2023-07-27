@@ -262,5 +262,5 @@ class Model(MultiLabelModel):
                 self._grad_norm_queue.append(min(total_norm, max_norm * 2.0, torch.tensor(1.0)))
                 if total_norm > max_norm * self._clip_grad:
                     logging.warning(
-                        f"Clipping gradients with total norm {round(total_norm, 5)} and max norm {round(max_norm, 5)}"
+                        f"Clipping gradients with total norm {total_norm:.5f} and max norm {max_norm:.5f}"
                     )

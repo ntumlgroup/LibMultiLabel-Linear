@@ -204,6 +204,8 @@ def init_trainer(
         limit_val_batches=limit_val_batches,
         limit_test_batches=limit_test_batches,
         deterministic="warn",
+        val_check_interval=100,  # for attentionxml
+        check_val_every_n_epoch=None,  # for attentionxml
     )
     return trainer
 

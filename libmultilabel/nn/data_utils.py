@@ -246,7 +246,8 @@ def load_datasets(
             val_data, tokenize_text=tokenize_text, remove_no_label_data=remove_no_label_data
         )
     elif val_size > 0:
-        datasets["train"], datasets["val"] = train_test_split(datasets["train"], test_size=val_size, random_state=42)
+        datasets["train"], datasets["val"] = train_test_split(
+            datasets["train"], test_size=val_size, random_state=1240) # attentionxml
 
     if test_data is not None:
         datasets["test"] = _load_raw_data(
