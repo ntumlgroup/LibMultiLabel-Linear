@@ -1,12 +1,16 @@
 import argparse
 import logging
 import os
+import warnings
 from datetime import datetime
 from pathlib import Path
 
+import numba
 import yaml
 
-from libmultilabel.common_utils import Timer, AttributeDict
+from libmultilabel.common_utils import AttributeDict, Timer
+
+warnings.filterwarnings('ignore', category=numba.NumbaDeprecationWarning)
 
 
 def add_all_arguments(parser):
