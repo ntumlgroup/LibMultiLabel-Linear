@@ -76,6 +76,7 @@ for root, _, files in os.walk(tmp_dir):
             num_labels = len(preprocessor.binarizer.classes_)
             num_features = model['weights'].shape[0]
             if mmap:
+                pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
                 weights = np.memmap(
                     f'{model_dir}/weights.dat',
                     shape=(num_features, num_labels),
