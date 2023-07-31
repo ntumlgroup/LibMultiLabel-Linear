@@ -1,7 +1,6 @@
 import logging
-import transformers.utils.logging as transformer_logging
 
-LOG_FORMAT = '%(asctime)s %(levelname)s:%(message)s'
+LOG_FORMAT = "%(asctime)s %(levelname)s:%(message)s"
 
 
 class ListHandler(logging.Handler):
@@ -27,7 +26,9 @@ class ListHandler(logging.Handler):
         self.logs = []
         return logs
 
+
 stream_handler = None
+
 
 def add_stream_handler(level=logging.INFO):
     """Create and return a stream handler so that logging messages are
@@ -46,12 +47,17 @@ def add_stream_handler(level=logging.INFO):
     if stream_handler:
         return stream_handler
     else:
-        logging.getLogger().setLevel(logging.NOTSET) # use handlers to control levels
+        logging.getLogger().setLevel(logging.NOTSET)  # use handlers to control levels
 
-        transformer_logging.disable_default_handler()
-        transformer_logging.enable_propagation()
+        try:
+            import transformers.utils.logging as transformer_logging
 
-        lightning_logger = logging.getLogger('pytorch_lightning')
+            transformer_logging.disable_default_handler()
+            transformer_logging.enable_propagation()
+        except ImportError:
+            pass
+
+        lightning_logger = logging.getLogger("pytorch_lightning")
         lightning_logger.handlers.clear()
         lightning_logger.propagate = True
 
@@ -62,7 +68,9 @@ def add_stream_handler(level=logging.INFO):
 
     return stream_handler
 
+
 collect_handler = None
+
 
 def add_collect_handler(level=logging.NOTSET):
     """Create and return a ListHandler so that logging records with the attribute
@@ -83,11 +91,11 @@ def add_collect_handler(level=logging.NOTSET):
     if collect_handler:
         return collect_handler
     else:
-        logging.getLogger().setLevel(logging.NOTSET) # use handlers to control levels
+        logging.getLogger().setLevel(logging.NOTSET)  # use handlers to control levels
 
         collect_handler = ListHandler(level=level)
         collect_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        collect_handler.addFilter(lambda record: record.__dict__.get('collect', False))
+        collect_handler.addFilter(lambda record: record.__dict__.get("collect", False))
         logging.getLogger().addHandler(collect_handler)
 
     return collect_handler
