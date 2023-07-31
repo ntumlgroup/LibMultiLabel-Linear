@@ -41,7 +41,7 @@ div = len(hosts) * subdivision
 cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
 cmds = [f"{cmd} --label_subrange {i/div} {(i+1)/div} --result_dir {tmp_dir}" for i in range(div)]
 
-print(f"Running {div} jobs on {len(hosts)} hosts.")
+print(f"Running {div} jobs on {len(hosts)} hosts.", flush=True)
 handlers = sshutils.propogate_signal()
 sshutils.distribute(cmds, hosts)
 sshutils.propogate_signal(handlers)
