@@ -125,7 +125,7 @@ def propogate_signal(handlers: Optional[tuple] = None) -> Optional[tuple]:
     if handlers is None:
         def handler(sig, frame):
             kill_remote()
-            sys.exit(0)
+            sys.exit(sig)
 
         sigint = signal.signal(signal.SIGINT, handler)
         sigterm = signal.signal(signal.SIGTERM, handler)
