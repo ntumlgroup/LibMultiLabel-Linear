@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import queue
 import shlex
@@ -23,7 +25,7 @@ def home_relative_cwd() -> str:
     return cwd
 
 
-def distribute(cmds: "list[str]", hosts: "list[str]", working_dir: str = home_relative_cwd()):
+def distribute(cmds: list[str], hosts: list[str], working_dir: str = home_relative_cwd()):
     """Distribute cmds on hosts. Each host executes cmds sequentially.
 
     Args:
@@ -66,7 +68,7 @@ def distribute(cmds: "list[str]", hosts: "list[str]", working_dir: str = home_re
         ongoing_groups.pop(gid)
 
 
-def execute(cmd: str, hosts: "list[str]", working_dir: str = home_relative_cwd()):
+def execute(cmd: str, hosts: list[str], working_dir: str = home_relative_cwd()):
     """Executes cmd on every host.
 
     Args:
