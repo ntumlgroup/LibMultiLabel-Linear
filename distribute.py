@@ -4,12 +4,14 @@ import pathlib
 import shlex
 import shutil
 import subprocess
+import uuid
 
 import numpy as np
 from tqdm import tqdm
 
 import sshutils
 from libmultilabel import linear
+import libmultilabel.linear.linear as linear_internals
 
 parser = argparse.ArgumentParser(
     add_help=False,
@@ -37,9 +39,14 @@ model_dir = args.model_dir
 disable_tqdm = args.no_tqdm
 mmap = args.mmap
 
+session_id = uuid.uuid4().hex
+print(f"Session id {session_id}")
+master_dir = f"{tmp_dir}/master/{session_id}"  # needs two different directories to symmetry in self-hosting
+slave_dir = f"{tmp_dir}/slave/{session_id}"
+
 div = len(hosts) * subdivision
-cmd = f'python main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
-cmds = [f"{cmd} --label_subrange {i/div} {(i+1)/div} --result_dir {tmp_dir}" for i in range(div)]
+cmd = f'python3 main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
+cmds = [f"{cmd} --silent --label_subrange {i/div} {(i+1)/div} --result_dir {slave_dir}" for i in range(div)]
 
 print(f"Running {div} jobs on {len(hosts)} hosts.", flush=True)
 handlers = sshutils.propogate_signal()
@@ -48,16 +55,16 @@ sshutils.propogate_signal(handlers)
 
 cwd = sshutils.home_relative_cwd()
 print("Copying from hosts")
-pathlib.Path(f"{tmp_dir}").mkdir(parents=True, exist_ok=True)
+pathlib.Path(f"{master_dir}").mkdir(parents=True, exist_ok=True)
 for host in tqdm(hosts, disable=disable_tqdm):
-    subprocess.call(f'scp -qr "{host}:{cwd}/{tmp_dir}" "{tmp_dir}/{host}"', shell=True, executable="/bin/bash")
-    sshutils.execute(f"rm -r {tmp_dir}", [host])
+    subprocess.call(f'scp -qr "{host}:{cwd}/{slave_dir}" "{master_dir}/{host}"', shell=True, executable="/bin/bash")
+    sshutils.execute(f"rm -r {slave_dir}", [host])
 
 print("Reconstructing model")
 pbar = tqdm(total=div, disable=disable_tqdm)
 weights = None
 bias = None
-for root, _, files in os.walk(tmp_dir):
+for root, _, files in os.walk(master_dir):
     for file in files:
         if file != "linear_pipeline.pickle":
             continue
@@ -79,14 +86,18 @@ pbar.close()
 
 
 combined_model = {
-    "-B": bias,
-    "threshold": 0,
+    "bias": bias,
+    "thresholds": 0,
 }
 
 if mmap:
-    combined_model.mmap = {"shape": (num_features, num_labels), "dtype": "d"}
+    combined_model["name"] = "mmap-1vsrest"
+    combined_model["weights"] = None
+    combined_model["mmap"] = {"shape": (num_features, num_labels), "dtype": "d"}
 else:
-    combined_model.weights = np.asmatrix(weights)
+    combined_model["name"] = "1vsrest"
+    combined_model["weights"] = np.asmatrix(weights)
 
+combined_model = linear_internals.FlatModel(**combined_model)
 linear.save_pipeline(model_dir, preprocessor, combined_model)
-shutil.rmtree(tmp_dir)
+shutil.rmtree(master_dir)
