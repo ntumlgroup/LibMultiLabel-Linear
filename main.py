@@ -8,9 +8,9 @@ from pathlib import Path
 import numba
 import yaml
 
-from libmultilabel.common_utils import AttributeDict, Timer
-
 warnings.filterwarnings("ignore", category=numba.NumbaDeprecationWarning)
+from libmultilabel.common_utils import Timer, AttributeDict
+from libmultilabel.logging import add_stream_handler, add_collect_handler
 
 
 def add_all_arguments(parser):
@@ -307,7 +307,6 @@ def main():
 
         linear_run(config)
     else:
-        from libmultilabel.logging import add_stream_handler, add_collect_handler
         from torch_trainer import TorchTrainer
 
         trainer = TorchTrainer(config)  # initialize trainer
