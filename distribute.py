@@ -41,14 +41,14 @@ mmap = args.mmap
 
 session_id = uuid.uuid4().hex
 print(f"Session id {session_id}")
-master_dir = f"{tmp_dir}/master/{session_id}"  # needs two different directories to symmetry in self-hosting
+master_dir = f"{tmp_dir}/master/{session_id}"  # needs two different directories to allow symmetry in self-hosting
 slave_dir = f"{tmp_dir}/slave/{session_id}"
 
 div = len(hosts) * subdivision
 cmd = f'python3 main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
 cmds = [f"{cmd} --silent --label_subrange {i/div} {(i+1)/div} --result_dir {slave_dir}" for i in range(div)]
 
-print(f"Running {div} jobs on {len(hosts)} hosts.", flush=True)
+print(f"Running {div} jobs on {len(hosts)} hosts", flush=True)
 handlers = sshutils.propogate_signal()
 sshutils.distribute(cmds, hosts)
 sshutils.propogate_signal(handlers)
