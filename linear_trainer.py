@@ -47,15 +47,16 @@ def linear_train(datasets, config):
         )
     else:
         kwargs = {}
-        if not config.label_subrange is None and config.linear_technique == '1vsrest':
-            num_classes = datasets['train']['y'].shape[1]
-            kwargs['subset'] = np.arange(int(num_classes * config.label_subrange[0]),
-                                        int(num_classes * config.label_subrange[1]))
-            kwargs['verbose'] = False
+        if not config.label_subrange is None and config.linear_technique == "1vsrest":
+            num_classes = datasets["train"]["y"].shape[1]
+            kwargs["subset"] = np.arange(
+                int(num_classes * config.label_subrange[0]), int(num_classes * config.label_subrange[1])
+            )
+            kwargs["verbose"] = False
 
         model = LINEAR_TECHNIQUES[config.linear_technique](
-            datasets['train']['y'],
-            datasets['train']['x'],
+            datasets["train"]["y"],
+            datasets["train"]["x"],
             config.liblinear_options,
             **kwargs,
         )

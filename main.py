@@ -10,7 +10,7 @@ import yaml
 
 from libmultilabel.common_utils import AttributeDict, Timer
 
-warnings.filterwarnings('ignore', category=numba.NumbaDeprecationWarning)
+warnings.filterwarnings("ignore", category=numba.NumbaDeprecationWarning)
 
 
 def add_all_arguments(parser):
@@ -220,8 +220,9 @@ def add_all_arguments(parser):
         action="store_true",
         help="Save all the predictions with decision value larger then 0. If used, the save_k_predictions must be set to 0",
     )
-    parser.add_argument('--label_subrange', type=float, nargs=2,
-                        help='The subrange of labels to train 1vsrest on, expressed as ratios.')
+    parser.add_argument(
+        "--label_subrange", type=float, nargs=2, help="The subrange of labels to train 1vsrest on, expressed as ratios."
+    )
 
     # tree options
     parser.add_argument("--tree_degree", type=int, default=100, help="Degree of the tree (default: %(default)s)")

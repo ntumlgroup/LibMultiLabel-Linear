@@ -70,11 +70,9 @@ class FlatModel:
         return (x * self.weights).A + self.thresholds
 
 
-def train_1vsrest(y: sparse.csr_matrix,
-                  x: sparse.csr_matrix,
-                  options: str,
-                  verbose: bool = True,
-                  subset: np.ndarray = None) -> FlatModel:
+def train_1vsrest(
+    y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, verbose: bool = True, subset: np.ndarray = None
+) -> FlatModel:
     """Trains a linear model for multiabel data using a one-vs-rest strategy.
 
     Args:
