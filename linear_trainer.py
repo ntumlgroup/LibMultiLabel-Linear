@@ -68,7 +68,7 @@ def linear_run(config):
 
     if config.eval:
         preprocessor, model = linear.load_pipeline(config.checkpoint_path)
-        model['weights'] = np.asmatrix(np.ascontiguousarray(model['weights']))
+        model.weights = np.asmatrix(np.ascontiguousarray(model.weights))
         datasets = linear.load_dataset(config.data_format, config.training_file, config.test_file)
         datasets = preprocessor.transform(datasets)
     else:

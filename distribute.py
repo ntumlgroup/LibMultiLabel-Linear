@@ -74,7 +74,7 @@ for root, _, files in os.walk(tmp_dir):
         preprocessor, model = linear.load_pipeline(f'{root}/{file}')
         if weights is None:
             num_labels = len(preprocessor.binarizer.classes_)
-            num_features = model['weights'].shape[0]
+            num_features = model.weights.shape[0]
             if mmap:
                 pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
                 weights = np.memmap(
@@ -84,9 +84,9 @@ for root, _, files in os.walk(tmp_dir):
             else:
                 weights = np.zeros((num_features, num_labels))
         if bias is None:
-            bias = model['-B']
+            bias = model.bias
 
-        weights[:, model['subset']] = model['weights']
+        weights[:, model.subset] = model.weights
         pbar.update()
 pbar.close()
 
@@ -97,9 +97,9 @@ combined_model = {
 }
 
 if mmap:
-    combined_model['mmap'] = {'shape': (num_features, num_labels), 'dtype': 'd'}
+    combined_model.mmap = {'shape': (num_features, num_labels), 'dtype': 'd'}
 else:
-    combined_model['weights'] = np.asmatrix(weights)
+    combined_model.weights = np.asmatrix(weights)
 
 linear.save_pipeline(model_dir, preprocessor, combined_model)
 shutil.rmtree(tmp_dir)
