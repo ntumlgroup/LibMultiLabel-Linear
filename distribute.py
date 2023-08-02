@@ -54,7 +54,9 @@ def main():
 
     div = len(hosts) * subdivision
     cmd = f'python3 main.py {" ".join(map(lambda x: shlex.quote(x), passthrough_args))}'
-    cmds = [f"{cmd} --silent --label_subrange {i/div} {(i+1)/div} --result_dir {slave_dir}" for i in range(div)]
+    cmds = [
+        f"{cmd} --silent --label_subrange {i/div} {(i+1)/div} --result_dir {shlex.quote(slave_dir)}" for i in range(div)
+    ]
 
     print(f"Running {div} jobs on {len(hosts)} hosts", flush=True)
     handlers = sshutils.propogate_signal()
@@ -65,8 +67,12 @@ def main():
     print("Copying from hosts")
     pathlib.Path(f"{master_dir}").mkdir(parents=True, exist_ok=True)
     for host in tqdm(hosts, disable=disable_tqdm, file=sys.stdout):
-        subprocess.call(f'scp -qr "{host}:{cwd}/{slave_dir}" "{master_dir}/{host}"', shell=True, executable="/bin/bash")
-        sshutils.execute(f"rm -r {slave_dir}", [host])
+        subprocess.call(
+            "scp -qr {} {}".format(shlex.quote(f"{host}:{cwd}/{slave_dir}"), shlex.quote(f"{master_dir}/{host}")),
+            shell=True,
+            executable="/bin/bash",
+        )
+        sshutils.execute(f"rm -r {shlex.quote(slave_dir)}", [host])
 
     print("Reconstructing model")
     pbar = tqdm(total=div, disable=disable_tqdm, file=sys.stdout)
