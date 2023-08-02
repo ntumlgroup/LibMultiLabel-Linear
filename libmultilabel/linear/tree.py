@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from . import linear
 
-__all__ = ["train_tree"]
+__all__ = ["train_tree", "train_tree_subsample"]
 
 
 class Node:
@@ -103,6 +103,66 @@ class TreeModel:
             pred = instance_preds[slice]
             scores[node.label_map] = np.exp(score - np.maximum(0, 1 - pred) ** 2)
         return scores
+
+def train_tree_subsample(
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    options: str = "",
+    K=100,
+    dmax=10,
+    sample_rate=0.1,
+    verbose: bool = True,
+) -> TreeModel:
+    """Trains a linear model for multiabel data using a divide-and-conquer strategy.
+    The algorithm used is based on https://github.com/xmc-aalto/bonsai.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        options (str): The option string passed to liblinear.
+        K (int, optional): Maximum degree of nodes in the tree. Defaults to 100.
+        dmax (int, optional): Maximum depth of the tree. Defaults to 10.
+        verbose (bool, optional): Output extra progress information. Defaults to True.
+
+    Returns:
+        A model which can be used in predict_values.
+    """
+    def subsample_indices(num_label: int, sample_rate: float) -> list:
+        indices = []
+        for idx in range(num_label):
+            if np.random.uniform(low=0.0, high=1.0) < sample_rate:
+                indices += [idx]
+        return indices
+
+    indices = subsample_indices(y.shape[1], sample_rate)
+    y = y[:,indices]
+
+    label_representation = (y.T * x).tocsr()
+    label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
+    root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+
+    num_nodes = 0
+
+    def count(node):
+        nonlocal num_nodes
+        num_nodes += 1
+
+    root.dfs(count)
+
+    pbar = tqdm(total=num_nodes, disable=not verbose)
+
+    def visit(node):
+        relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        _train_node(y[relevant_instances], x[relevant_instances], options, node)
+        pbar.update()
+
+    root.dfs(visit)
+    pbar.close()
+
+    flat_model, weight_map = _flatten_model(root)
+    return TreeModel(root, flat_model, weight_map), indices
+
+
 
 
 def train_tree(
