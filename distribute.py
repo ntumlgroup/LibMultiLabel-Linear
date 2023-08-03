@@ -66,7 +66,7 @@ def main():
     cwd = sshutils.home_relative_cwd()
     print("Copying from hosts")
     pathlib.Path(f"{master_dir}").mkdir(parents=True, exist_ok=True)
-    for host in tqdm(hosts, disable=disable_tqdm, file=sys.stdout):
+    for host in tqdm(hosts, disable=disable_tqdm):
         subprocess.call(
             "scp -qr {} {}".format(shlex.quote(f"{host}:{cwd}/{slave_dir}"), shlex.quote(f"{master_dir}/{host}")),
             shell=True,
@@ -75,7 +75,7 @@ def main():
         sshutils.execute(f"rm -r {shlex.quote(slave_dir)}", [host])
 
     print("Reconstructing model")
-    pbar = tqdm(total=div, disable=disable_tqdm, file=sys.stdout)
+    pbar = tqdm(total=div, disable=disable_tqdm)
     weights = None
     bias = None
     for root, _, files in os.walk(master_dir):
