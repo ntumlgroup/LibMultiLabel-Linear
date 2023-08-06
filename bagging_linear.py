@@ -49,11 +49,14 @@ num_models = ARGS.num_models
 total_preds = np.zeros([datasets["test"]["x"].shape[0], datasets["train"]["y"].shape[1]])
 total_cnts = np.zeros(datasets["train"]["y"].shape[1])
 
-model_name = "Rand-label-Forest_eur-lex_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
         seed = ARGS.seed,
         K = ARGS.K,
         sample_rate = ARGS.sample_rate,
+        data = os.path.basename(ARGS.datapath)
         )
+
+print(model_name)
 
 for model_idx in range(num_models):
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
