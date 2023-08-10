@@ -18,18 +18,6 @@ ARGS = parser.parse_args()
 
 np.random.seed(ARGS.seed)
 
-datasets = linear.load_dataset(
-        "svm", 
-        os.path.join(ARGS.datapath, "train.svm"), 
-        os.path.join(ARGS.datapath, "test.svm"), 
-        )
-
-preprocessor = linear.Preprocessor()
-preprocessor.fit(datasets)
-datasets = preprocessor.transform(datasets)
-
-training_start = time.time()
-
 # OVR with bagging in instances
 #
 # model = linear.train_1vsrest_negative_sampling(
@@ -46,6 +34,15 @@ training_start = time.time()
 # preds = linear.predict_values(model, datasets["test"]["x"])
 
 num_models = ARGS.num_models
+
+seed_pool = []
+while len(seed_pool) != num_models:
+    seed = np.random.randint(2**31 - 1)
+    if seed not in seed_pool:
+        seed_pool += [seed]
+
+print(seed_pool[:10])
+"""
 total_preds = np.zeros([datasets["test"]["x"].shape[0], datasets["train"]["y"].shape[1]])
 total_cnts = np.zeros(datasets["train"]["y"].shape[1])
 
@@ -56,10 +53,11 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
         data = os.path.basename(ARGS.datapath)
         )
 
-print(model_name)
-
 for model_idx in range(num_models):
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
+
+    np.random.seed(seed_pool[model_idx])
+
     if os.path.isfile(submodel_name):
         with open(submodel_name, "rb") as F:
             tmp = pickle.load(F)
@@ -100,3 +98,4 @@ metrics = linear.compute_metrics(
 print("mean in subsampled labels:", metrics)
 
 print("Total time:", time.time()-training_start)
+"""
