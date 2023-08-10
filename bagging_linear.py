@@ -19,10 +19,10 @@ ARGS = parser.parse_args()
 np.random.seed(ARGS.seed)
 
 datasets = linear.load_dataset(
-                "svm",
-                os.path.join(ARGS.datapath, "train.svm"),
-                os.path.join(ARGS.datapath, "test.svm"),
-                )
+               "svm",
+               os.path.join(ARGS.datapath, "train.svm"),
+               os.path.join(ARGS.datapath, "test.svm"),
+           )
 
 preprocessor = linear.Preprocessor()
 preprocessor.fit(datasets)
@@ -52,8 +52,6 @@ while len(seed_pool) != num_models:
     seed = np.random.randint(2**31 - 1)
     if seed not in seed_pool:
         seed_pool += [seed]
-
-print(seed_pool[:10])
 
 total_preds = np.zeros([datasets["test"]["x"].shape[0], datasets["train"]["y"].shape[1]])
 total_cnts = np.zeros(datasets["train"]["y"].shape[1])
