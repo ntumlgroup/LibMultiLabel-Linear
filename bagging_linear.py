@@ -18,6 +18,18 @@ ARGS = parser.parse_args()
 
 np.random.seed(ARGS.seed)
 
+datasets = linear.load_dataset(
+                "svm",
+                os.path.join(ARGS.datapath, "train.svm"),
+                os.path.join(ARGS.datapath, "test.svm"),
+                )
+
+preprocessor = linear.Preprocessor()
+preprocessor.fit(datasets)
+datasets = preprocessor.transform(datasets)
+
+training_start = time.time()
+
 # OVR with bagging in instances
 #
 # model = linear.train_1vsrest_negative_sampling(
@@ -42,7 +54,7 @@ while len(seed_pool) != num_models:
         seed_pool += [seed]
 
 print(seed_pool[:10])
-"""
+
 total_preds = np.zeros([datasets["test"]["x"].shape[0], datasets["train"]["y"].shape[1]])
 total_cnts = np.zeros(datasets["train"]["y"].shape[1])
 
@@ -98,4 +110,3 @@ metrics = linear.compute_metrics(
 print("mean in subsampled labels:", metrics)
 
 print("Total time:", time.time()-training_start)
-"""
