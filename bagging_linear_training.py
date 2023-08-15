@@ -19,15 +19,22 @@ ARGS = parser.parse_args()
 
 np.random.seed(ARGS.seed)
 
-datasets = linear.load_dataset(
-               "svm",
-               os.path.join(ARGS.datapath, "train.svm"),
-               os.path.join(ARGS.datapath, "test.svm"),
-           )
-
-preprocessor = linear.Preprocessor()
-preprocessor.fit(datasets)
-datasets = preprocessor.transform(datasets)
+if "wiki-500k-pecos" in ARGS.datapath:
+    with open("/tmp2/d09944003/datasets/pickle-format/wiki-500k-pecos.pkl", "rb") as F:
+        datasets = pickle.load(F)
+elif "amazon-3m-pecos" in ARGS.datapath:
+    with open("/tmp2/d09944003/datasets/pickle-format/amazon-3m-pecos.pkl", "rb") as F:
+        datasets = pickle.load(F)
+else:
+    datasets = linear.load_dataset(
+                   "svm",
+                   os.path.join(ARGS.datapath, "train.svm"),
+                   os.path.join(ARGS.datapath, "test.svm"),
+               )
+    
+    preprocessor = linear.Preprocessor()
+    preprocessor.fit(datasets)
+    datasets = preprocessor.transform(datasets)
 
 training_start = time.time()
 
