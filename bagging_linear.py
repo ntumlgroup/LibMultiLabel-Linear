@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import pickle
 import os
+import time
 
 parser = argparse.ArgumentParser()
 
@@ -18,16 +19,11 @@ ARGS = parser.parse_args()
 
 np.random.seed(ARGS.seed)
 
-datasets = linear.load_dataset(
-               "svm",
-               os.path.join(ARGS.datapath, "train.svm"),
-               os.path.join(ARGS.datapath, "test.svm"),
-           )
-
-preprocessor = linear.Preprocessor()
-preprocessor.fit(datasets)
-datasets = preprocessor.transform(datasets)
-
+print("start", flush=True)
+start = time.time()
+with open(ARGS.datapath + '.pkl', "rb") as F:
+    datasets = pickle.load(F)
+print("data loading cost:", time.time()-start, flush=True)
 training_start = time.time()
 
 # OVR with bagging in instances
@@ -64,6 +60,8 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
         )
 
 for model_idx in range(num_models):
+    print("process id:", model_idx, flush=True)
+    start = time.time()
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
 
     np.random.seed(seed_pool[model_idx])
@@ -73,15 +71,17 @@ for model_idx in range(num_models):
             tmp = pickle.load(F)
         tmp, indices = tmp
     else:
-        tmp, indices = linear.train_tree_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-        with open(submodel_name, "wb") as F:
-            pickle.dump((tmp, indices), F)
+        pass
+        # tmp, indices = linear.train_tree_subsample(
+        #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        # with open(submodel_name, "wb") as F:
+        #     pickle.dump((tmp, indices), F)
 
     preds = tmp.predict_values(datasets["test"]["x"], beam_width=ARGS.beam_width)
     for idx in range(len(indices)):
         total_preds[:, indices[idx]] += preds[:, idx]
         total_cnts[indices[idx]] += 1
+    print("cost:", time.time()-start, flush=True)
 
 
 target = datasets["test"]["y"].toarray()
