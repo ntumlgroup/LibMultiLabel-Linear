@@ -19,22 +19,11 @@ ARGS = parser.parse_args()
 
 np.random.seed(ARGS.seed)
 
-if "wiki-500k-pecos" in ARGS.datapath:
-    with open("/tmp2/d09944003/datasets/pickle-format/wiki-500k-pecos.pkl", "rb") as F:
-        datasets = pickle.load(F)
-elif "amazon-3m-pecos" in ARGS.datapath:
-    with open("/tmp2/d09944003/datasets/pickle-format/amazon-3m-pecos.pkl", "rb") as F:
-        datasets = pickle.load(F)
-else:
-    datasets = linear.load_dataset(
-                   "svm",
-                   os.path.join(ARGS.datapath, "train.svm"),
-                   os.path.join(ARGS.datapath, "test.svm"),
-               )
-    
-    preprocessor = linear.Preprocessor()
-    preprocessor.fit(datasets)
-    datasets = preprocessor.transform(datasets)
+print("start", flush=True)
+start = time.time()
+with open(ARGS.datapath + '.pkl', "rb") as F:
+    datasets = pickle.load(F)
+print("data loading cost:", time.time()-start, flush=True)
 
 training_start = time.time()
 
@@ -82,6 +71,7 @@ if ARGS.idx >= 0:
 
 else:
     for model_idx in range(num_models):
+        model_start = time.time()
         submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     
         np.random.seed(seed_pool[model_idx])
@@ -91,3 +81,6 @@ else:
                     datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
             with open(submodel_name, "wb") as F:
                 pickle.dump((tmp, indices), F)
+        print("training one model cost:", time.time()-model_start, flush=True)
+
+print("training all models cost:", time.time()-start, flush=True)
