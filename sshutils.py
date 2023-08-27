@@ -82,8 +82,8 @@ def execute(cmd: str, hosts: list[str], working_dir: str = home_relative_cwd()):
 def run_remote_raw(cmd: str, host: str) -> int:
     fullcmd = (
         f"ssh -x {host} {shlex.quote(cmd)} "
-        f'2> >(xargs -I {{}} echo "{host}: {{}}" >&2) '
-        f'| xargs -I {{}} echo "{host}: {{}}"'
+        f"2> >(xargs -I {{}} echo {host}: {{}} >&2) "
+        f"| xargs -I {{}} echo {host}: {{}}"
     )
     return subprocess.call(fullcmd, shell=True, executable="/bin/bash")
 
@@ -101,12 +101,12 @@ def run_remote(cmd: str, host: str, working_dir: str, gid: str) -> int:
         int: exit status of the local ssh command.
     """
     remotecmd = (
-        "mkdir -p $HOME/.sshutils; "
-        f"echo $$ > $HOME/.sshutils/{gid}; "
-        "[[ -f $HOME/.bashrc ]] && source $HOME/.bashrc; "
+        'mkdir -p "$HOME"/.sshutils; '
+        f'echo $$ > "$HOME"/.sshutils/{gid}; '
+        '[[ -f "$HOME"/.bashrc ]] && source "$HOME"/.bashrc; '
         f'cd "{working_dir}"; '
         f"{cmd}; "
-        f"rm -f $HOME/.sshutils/{gid}"
+        f'rm -f "$HOME"/.sshutils/{gid}'
     )
     return run_remote_raw(remotecmd, host)
 
@@ -138,9 +138,9 @@ def propogate_signal(handlers: Optional[tuple] = None) -> Optional[tuple]:
 def kill_remote():
     for gid, hosts in ongoing_groups.items():
         cmd = (
-            f"[[ -f $HOME/.sshutils/{gid} ]] && "
-            f"kill -s {int(signal.SIGHUP)} $(cat $HOME/.sshutils/{gid}) && "
-            f"rm -f $HOME/.sshutils/{gid}"
+            f'[[ -f "$HOME"/.sshutils/{gid} ]] && '
+            f'kill -s {int(signal.SIGHUP)} $(cat "$HOME"/.sshutils/{gid}) && '
+            f'rm -f "$HOME"/.sshutils/{gid}'
         )
         for host in hosts:
             run_remote_raw(cmd, host)

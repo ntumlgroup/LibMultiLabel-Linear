@@ -29,12 +29,14 @@ class FlatModel:
         bias: float,
         thresholds: float | np.ndarray,
         subset: np.ndarray = None,
+        mmap: dict = None,
     ):
         self.name = name
         self.weights = weights
         self.bias = bias
         self.thresholds = thresholds
         self.subset = subset
+        self.mmap = mmap
 
     def predict_values(self, x: sparse.csr_matrix) -> np.ndarray:
         """Calculates the decision values associated with x.

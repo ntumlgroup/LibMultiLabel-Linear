@@ -63,7 +63,7 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     with open(checkpoint_path, "rb") as f:
         pipeline = pickle.load(f)
     preprocessor, model = pipeline["preprocessor"], pipeline["model"]
-    if hasattr(model, "mmap"):
+    if not model.mmap is None:
         weights_path = os.path.join(os.path.dirname(checkpoint_path), "weights.dat")
         weights = np.matrix(np.memmap(weights_path, mode="r", **model.mmap), copy=False)
         model.weights = weights
