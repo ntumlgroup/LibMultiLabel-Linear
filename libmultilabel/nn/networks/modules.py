@@ -188,8 +188,8 @@ class LabelwiseAttention(nn.Module):
     def __init__(self, input_size: int, num_classes: int, init_fn: Callable[..., Tensor] | None = None):
         super(LabelwiseAttention, self).__init__()
         self.attention = nn.Linear(input_size, num_classes, bias=False)
-        if init_fn is not None:
-            init_fn(self.attention.weight)
+        #if init_fn is not None:
+        #    init_fn(self.attention.weight)
 
     def forward(self, inputs: Tensor, masks: Tensor | None = None) -> tuple[Tensor, Tensor]:
         if masks is None:
@@ -296,8 +296,8 @@ class AttentionRNNLinearOutput(nn.Module):
     def __init__(self, linear_size: list[int, ...], output_size: int):
         super().__init__()
         self.linears = nn.ModuleList(nn.Linear(in_s, out_s) for in_s, out_s in zip(linear_size[:-1], linear_size[1:]))
-        for linear in self.linears:
-            nn.init.xavier_uniform_(linear.weight)
+        #for linear in self.linears:
+        #    nn.init.xavier_uniform_(linear.weight)
         self.output = nn.Linear(linear_size[-1], output_size)
         #nn.init.xavier_uniform_(self.output.weight)
 
