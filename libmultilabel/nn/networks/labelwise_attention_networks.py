@@ -124,7 +124,7 @@ class AttentionRNN(RNNLWAN):
 
     def _get_attention(self):
         # return LabelwiseAttention(self.rnn_dim * 2, self.num_classes, init_fn=xavier_uniform_)
-        return LabelwiseAttention(self.rnn_dim, self.num_classes, init_fn=xavier_uniform_)
+        return LabelwiseAttention(self.rnn_dim, self.num_classes)
 
     def forward(self, inputs):
         # N: num_batches, L: sequence_length, E: emb_size, v: vocab_size, C: num_classes, H: hidden_dim

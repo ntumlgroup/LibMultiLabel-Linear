@@ -35,7 +35,8 @@ class Embedding(nn.Module):
             embed_vecs,
             freeze=freeze,
             padding_idx=self.padding_idx,
-            sparse=True if self.use_sparse_embed else False,
+            sparse=False
+            #sparse=True if self.use_sparse_embed else False,
         )
 
     def forward(self, inputs: Tensor) -> Tensor | tuple[Tensor, Tensor, Tensor]:
@@ -298,7 +299,7 @@ class AttentionRNNLinearOutput(nn.Module):
         for linear in self.linears:
             nn.init.xavier_uniform_(linear.weight)
         self.output = nn.Linear(linear_size[-1], output_size)
-        nn.init.xavier_uniform_(self.output.weight)
+        #nn.init.xavier_uniform_(self.output.weight)
 
     def forward(self, inputs):
         linear_out = inputs

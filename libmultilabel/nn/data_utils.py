@@ -5,7 +5,7 @@ import gc
 import logging
 import warnings
 from typing import Iterable
-
+from functools import partial
 import numpy as np
 import pandas as pd
 import torch
@@ -14,6 +14,7 @@ from nltk.tokenize import RegexpTokenizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
 from torch.nn.utils.rnn import pad_sequence
+from torch.nn.init import uniform_
 from torch.utils.data import Dataset
 from torchtext.vocab import build_vocab_from_iterator, pretrained_aliases, Vocab
 from tqdm import tqdm
@@ -415,6 +416,8 @@ def get_embedding_weights_from_file(model_name, word_dict, embed_file, silent=Fa
         embed_size = vector_dict.dim
 
     embedding_weights = torch.zeros(len(word_dict), embed_size)
+    uni_init = partial(uniform_, a=-1, b=1)
+    vector_dict.unk_init = uni_init
 
     if load_embedding_from_file:
         # AttentionXML: Add UNK embedding
