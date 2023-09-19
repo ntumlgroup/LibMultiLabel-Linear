@@ -1,6 +1,7 @@
 import libmultilabel.linear as linear
 import time
 import numpy as np
+import scipy.sparse as sparse
 import argparse
 import pickle
 import os
@@ -56,15 +57,29 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
 
 if ARGS.idx >= 0:
     model_idx = ARGS.idx
-    submodel_name = "./models/" + model_name + "-{}".format(model_idx)
-
     np.random.seed(seed_pool[model_idx])
 
+    submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     if not os.path.isfile(submodel_name):
-        tmp, indices = linear.train_tree_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        #tmp, indices = linear.train_tree_subsample(
+        #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        tmp, indices = linear.train_1vsrest_subsample(
+                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
         with open(submodel_name, "wb") as F:
             pickle.dump((tmp, indices), F)
+
+    # predict_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx)
+    # if not os.path.isfile(predict_name):
+    #     num_instances = datasets["test"]["x"].shape[0]
+    #     num_batches = math.ceil(num_instances / batch_size)
+    #     preds = []
+    #     for i in range(num_batches):
+    #         tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
+    #         preds += [ tmp.predict_values(tmp_data, beam_width=ARGS.beam_width) ]
+
+    #     preds = sparse.vstack(preds)
+    #     with open(predict_name, "wb") as F:
+    #         pickle.dump((preds, indices), F)
 
 else:
     for model_idx in range(num_models):
@@ -73,7 +88,9 @@ else:
         np.random.seed(seed_pool[model_idx])
     
         if not os.path.isfile(submodel_name):
-            tmp, indices = linear.train_tree_subsample(
-                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+            # tmp, indices = linear.train_tree_subsample(
+            #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+            tmp, indices = linear.train_1vsrest_subsample(
+                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
             with open(submodel_name, "wb") as F:
                 pickle.dump((tmp, indices), F)
