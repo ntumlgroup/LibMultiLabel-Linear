@@ -30,10 +30,12 @@ pip install --user --force -r requirements.txt
 `--force` is required because we wish to override system packages.
 
 ## Setup for NFS
-Additionally, a temporary directory *for each host* must exist. If LibMultiLabel resides on NFS, then run
+Additionally, two temporary directories *for each host* must exist. If LibMultiLabel resides on NFS, then run
 ```bash
 mkdir -p <non-nfs-path>/tmp
 ln -s <non-nfs-path>/tmp
+mkdir -p <non-nfs-path>/.sshutils
+ln -s <non-nfs-path>/.sshutils ~/.sshutils
 ```
 where `<non-nfs-path>` is some path to a non-nfs directory, e.g. `/tmp2/$USER`.
 
