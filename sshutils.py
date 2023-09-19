@@ -26,7 +26,8 @@ def home_relative_cwd() -> str:
 
 
 def distribute(cmds: list[str], hosts: list[str], working_dir: str = home_relative_cwd()):
-    """Distribute cmds on hosts. Each host executes cmds sequentially.
+    """Distribute cmds on hosts, giving each host a disjoint subset to execute.
+    Each host executes its subset sequentially.
 
     Args:
         cmds (list[str]): List of shell commands.
