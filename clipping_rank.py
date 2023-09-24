@@ -1,6 +1,6 @@
 """
 Usage:
-    clipping_rank.py [<checkpoint_dir>...] [-o output] [-m mode]
+    clipping_rank.py [<checkpoint_path>...] [-o output] [-m mode]
 
 Options:
     -o output       output path [default: results.json]
@@ -65,6 +65,10 @@ def scipy_svd(weights, cutoffs):
 
 def main():
     args = docopt.docopt(__doc__)
+    files = args["<checkpoint_path>"]
+    mode = args["-m"]
+    output_path = args["-o"]
+
     np.random.seed(42)
 
     linear_qs = 100
@@ -79,14 +83,14 @@ def main():
     )
 
     results = {}
-    for d in args["<checkpoint_dir>"]:
-        run_name = d.split("/")[-2]
+    for file in files:
+        run_name = file.split("/")[-2]
         m = re.match(r"([^_]+)_([^_]+_[^_]+)_c(\d+)_.*", run_name)
         data = m[1]
         solver = m[2]
         reg = m[3]
 
-        preprocessor, model = linear.load_pipeline(d)
+        preprocessor, model = linear.load_pipeline(file)
         weights = model["weights"].A
         absweights = np.abs(weights)
         epss = np.quantile(absweights, quantiles)
@@ -95,15 +99,19 @@ def main():
         ranks = {}
         singular_values = {}
         for eps in epss:
-            if args["-m"] == "np":
+            if mode == "np":
                 weights, absweights = np_clip(weights, absweights, eps)
                 s, r = np_svd(weights, cutoffs)
-            elif args["-m"] == "sp":
+            elif mode == "sp":
                 weights, absweights = sparse_clip(weights, absweights, eps)
                 s, r = scipy_svd(weights, cutoffs)
-            elif args["-m"] == "sklearn":
+            elif mode == "sklearn":
                 weights, absweights = np_clip(weights, absweights, eps)
                 s, r = sklearn_svd(weights, cutoffs)
+            elif mode == "auto":
+                pass
+            else:
+                raise ValueError(f"bad mode {mode}")
 
             singular_values[eps] = s
             ranks[eps] = r
@@ -118,7 +126,7 @@ def main():
             "singular_values": singular_values,
         }
 
-    with open(args["-o"], "w") as f:
+    with open(output_path, "w") as f:
         json.dump(
             {
                 "quantiles": {
