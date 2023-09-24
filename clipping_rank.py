@@ -1,9 +1,10 @@
 """
 Usage:
-    clipping_rank.py [<checkpoint_dir>...] [-o output]
+    clipping_rank.py [<checkpoint_dir>...] [-o output] [-m mode]
 
 Options:
     -o output       output path [default: results.json]
+    -m mode         computation mode [default: np]
 """
 
 from collections import defaultdict
@@ -12,13 +13,54 @@ from libmultilabel import linear
 import docopt
 import numpy as np
 import sklearn.decomposition
+import scipy
+import scipy.sparse as sparse
 import re
 
 
-def clip(weights, absweights, eps):
+def np_clip(weights, absweights, eps):
     clipped = absweights < eps
     weights[clipped] = 0
-    return weights
+    return weights, absweights
+
+
+def sparse_clip(weights, absweights, eps):
+    if not isinstance(weights, sparse.csr_matrix):
+        weights = sparse.csr_matrix(weights)
+        absweights = sparse.csr_matrix(absweights)
+
+    clipped = absweights.data < eps
+    weights.data[clipped] = 0
+    weights.eliminate_zeros()
+    return weights, np.abs(weights)
+
+
+def sklearn_svd(weights, cutoffs):
+    pca = sklearn.decomposition.PCA(
+        copy=True,
+        svd_solver="full",
+        random_state=np.random.randint(2**31 - 1),
+    )
+    pca.fit(weights)
+    s = pca.singular_values_
+    r = [int(np.sum(pca.explained_variance_ratio_ > cutoff)) for cutoff in cutoffs]
+    return s.tolist(), r
+
+
+def np_svd(weights, cutoffs):
+    s = np.linalg.svd(weights, compute_uv=False)
+    s2 = s**2
+    explained_variance_ratio = s2 / s2.sum()
+    r = [int(np.sum(explained_variance_ratio > cutoff)) for cutoff in cutoffs]
+    return s.tolist(), r
+
+
+def scipy_svd(weights, cutoffs):
+    s = scipy.linalg.svd(weights, compute_uv=False)
+    s2 = s**2
+    explained_variance_ratio = s2 / s2.sum()
+    r = [int(np.sum(explained_variance_ratio > cutoff)) for cutoff in cutoffs]
+    return s.tolist(), r
 
 
 def main():
@@ -53,17 +95,18 @@ def main():
         ranks = {}
         singular_values = {}
         for eps in epss:
-            pca = sklearn.decomposition.PCA(
-                copy=True,
-                svd_solver="full",
-                random_state=np.random.randint(2**31 - 1),
-            )
-            pca.fit(clip(weights, absweights, eps))
-            singular_values[eps] = pca.singular_values_.tolist()
-            ranks[eps] = [
-                int(np.sum(pca.explained_variance_ratio_ > cutoff))
-                for cutoff in cutoffs
-            ]
+            if args["-m"] == "np":
+                weights, absweights = np_clip(weights, absweights, eps)
+                s, r = np_svd(weights, cutoffs)
+            elif args["-m"] == "sp":
+                weights, absweights = sparse_clip(weights, absweights, eps)
+                s, r = scipy_svd(weights, cutoffs)
+            elif args["-m"] == "sklearn":
+                weights, absweights = np_clip(weights, absweights, eps)
+                s, r = sklearn_svd(weights, cutoffs)
+
+            singular_values[eps] = s
+            ranks[eps] = r
 
         results[run_name] = {
             "data": data,
