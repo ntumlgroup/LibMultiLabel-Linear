@@ -416,8 +416,6 @@ def get_embedding_weights_from_file(model_name, word_dict, embed_file, silent=Fa
         embed_size = vector_dict.dim
 
     embedding_weights = torch.zeros(len(word_dict), embed_size)
-    uni_init = partial(uniform_, a=-1, b=1)
-    vector_dict.unk_init = uni_init
 
     if load_embedding_from_file:
         # AttentionXML: Add UNK embedding
