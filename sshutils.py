@@ -28,6 +28,7 @@ def home_relative_cwd() -> str:
 def distribute(cmds: list[str], hosts: list[str], working_dir: str = home_relative_cwd()):
     """Distribute cmds on hosts, giving each host a disjoint subset to execute.
     Each host executes its subset sequentially.
+    Before each cmd is executed, sources $HOME/.bash_init if it exist.
 
     Args:
         cmds (list[str]): List of shell commands.
@@ -71,6 +72,7 @@ def distribute(cmds: list[str], hosts: list[str], working_dir: str = home_relati
 
 def execute(cmd: str, hosts: list[str], working_dir: str = home_relative_cwd()):
     """Executes cmd on every host.
+    Before each cmd is executed, sources $HOME/.bash_init if it exist.
 
     Args:
         cmd (str): Shell command.
@@ -81,6 +83,15 @@ def execute(cmd: str, hosts: list[str], working_dir: str = home_relative_cwd()):
 
 
 def run_remote_raw(cmd: str, host: str) -> int:
+    """Runs cmd on host with correct quotation and prefixes output with host name.
+
+    Args:
+        cmd (str): Shell command.
+        host (str): ssh host name.
+
+    Returns:
+        int: exit status of the local ssh command.
+    """
     fullcmd = (
         f"ssh -x {host} {shlex.quote(cmd)} "
         f"2> >(xargs -I {{}} echo {host}: {{}} >&2) "
@@ -90,7 +101,8 @@ def run_remote_raw(cmd: str, host: str) -> int:
 
 
 def run_remote(cmd: str, host: str, working_dir: str, gid: str) -> int:
-    """Low level function to execute cmd on host.
+    """Low level function to execute cmd on host. Wraps cmd with housekeeping
+    commands which handles gid, .bash_init and changing working directory.
 
     Args:
         cmd (str): Shell command.
@@ -104,7 +116,7 @@ def run_remote(cmd: str, host: str, working_dir: str, gid: str) -> int:
     remotecmd = (
         'mkdir -p "$HOME"/.sshutils; '
         f'echo $$ > "$HOME"/.sshutils/{gid}; '
-        '[[ -f "$HOME"/.bashrc ]] && source "$HOME"/.bashrc; '
+        '[[ -f "$HOME"/.bash_init ]] && . "$HOME"/.bash_init; '
         f'cd "{working_dir}"; '
         f"{cmd}; "
         f'rm -f "$HOME"/.sshutils/{gid}'

@@ -29,6 +29,11 @@ pip install --user --force -r requirements.txt
 ```
 `--force` is required because we wish to override system packages.
 
+## Setup for bash environment
+When using bash through ssh, neither `.bashrc` nor `.bash_profile` executes, see [this](https://unix.stackexchange.com/questions/257571/why-does-bashrc-check-whether-the-current-shell-is-interactive) for details. To enable setting up the environment, `distribute.py` will source `$HOME/.bash_init` before executing on hosts.
+
+In particular, if you are using conda, copy the conda segment in `.bashrc` to `.bash_init`.
+
 ## Setup for NFS
 Additionally, two temporary directories *for each host* must exist. If LibMultiLabel resides on NFS, then run
 ```bash
