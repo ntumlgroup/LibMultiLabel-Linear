@@ -1,0 +1,45 @@
+# data
+training_file: data/MIMIC-50/train.txt
+val_file: data/MIMIC-50/valid.txt
+test_file: data/MIMIC-50/test.txt
+data_name: MIMIC-50
+min_vocab_freq: 1
+max_seq_length: 4000
+include_test_labels: true
+remove_no_label_data: true
+add_special_tokens: false
+
+# train
+seed: 1337
+epochs: 50
+batch_size: 16
+optimizer: adam
+learning_rate: 0.001
+weight_decay: 0
+patience: 6
+shuffle: true
+
+# eval
+eval_batch_size: 16
+monitor_metrics: ['Another-Macro-F1', 'Macro-F1', 'Micro-F1', 'P@1', 'P@5', 'RP@5', 'nDCG@5']
+val_metric: Micro-F1
+
+# model
+model_name: BiLSTMLWAN_exps
+loss_function: binary_cross_entropy_with_logits
+init_weight: kaiming_uniform
+network_config:
+  attn_mode: tanhW
+  output_mode: relu
+  embed_dropout: 0
+  encoder_dropout: 0.3
+  rnn_dim: 512
+  rnn_layers: 1
+  d_a: 256
+  linear_size: [256]
+  freeze_embed: false
+
+# pretrained vocab / embeddings
+vocab_file: null 
+embed_file: /home/gordon1109/mlgroup/data/MIMIC-50/processed_full.embed
+normalize_embed: false
