@@ -150,9 +150,10 @@ def propogate_signal(handlers: Optional[tuple] = None) -> Optional[tuple]:
 
 def kill_remote():
     for gid, hosts in ongoing_groups.items():
+        # .sshutils/gid contains the PID of bash, -PID kills the entire process group
         cmd = (
             f'[[ -f "$HOME"/.sshutils/{gid} ]] && '
-            f'kill -s {int(signal.SIGHUP)} $(cat "$HOME"/.sshutils/{gid}) && '
+            f'kill -s {int(signal.SIGHUP)} -$(cat "$HOME"/.sshutils/{gid}) && '
             f'rm -f "$HOME"/.sshutils/{gid}'
         )
         for host in hosts:
