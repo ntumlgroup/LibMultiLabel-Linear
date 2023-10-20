@@ -17,3 +17,16 @@ If you have a different version of CUDA, follow the installation instructions fo
 
 ## Documentation
 See the documentation here: https://www.csie.ntu.edu.tw/~cjlin/libmultilabel
+
+## Generating Callgraph
+First, install
+```
+pip install pycg
+sudo apt install graphviz jq
+```
+
+Then run
+```
+make
+```
+
