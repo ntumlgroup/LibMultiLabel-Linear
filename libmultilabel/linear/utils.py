@@ -27,6 +27,7 @@ LINEAR_TECHNIQUES = {
     "cost_sensitive_micro": linear.train_cost_sensitive_micro,
     "binary_and_multiclass": linear.train_binary_and_multiclass,
     "tree": linear.train_tree,
+    "ensemble" : linear.train_ensemble,
 }
 
 

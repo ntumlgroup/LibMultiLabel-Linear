@@ -37,7 +37,7 @@ def linear_test(config, model, datasets, label_mapping):
 
 
 def linear_train(datasets, config):
-    if config.linear_technique == "tree":
+    if config.linear_technique in ["tree", "ensemble"]:
         model = LINEAR_TECHNIQUES[config.linear_technique](
             datasets["train"]["y"],
             datasets["train"]["x"],
