@@ -27,6 +27,7 @@ val_metric: P@5
 # model
 model_name: CNNLWAN_exps
 init_weight: kaiming_uniform
+loss_function: binary_cross_entropy_with_logits
 network_config:
   attn_mode: vanilla
   output_mode: relu
