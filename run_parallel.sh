@@ -3,7 +3,7 @@
 # THIS FILE IS MODIFIED AUTOMATICALLY FROM TEMPLATE AND SHOULD BE RUNNABLE!
 
 #SBATCH --partition=gp4d
-#SBATCH --account=MST111300
+#SBATCH --account=MST111164
 
 ### This script works for any number of nodes, Ray will find and manage all resources
 #SBATCH --gres=gpu:8
@@ -11,7 +11,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=8
 #SBATCH --cpus-per-task=32
-#SBATCH --nodelist=gn0818,gn0914
+#SBATCH --nodelist=gn0809,gn0714
 ### Give all resources to a single Ray task, ray can manage the resources internally
 
 # Load modules or your own conda environment here

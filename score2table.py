@@ -45,7 +45,7 @@ def main():
 
     args = parser.parse_args()
 
-    json_files = sorted(glob.glob(f"{args.root}/*/*/*.json"))
+    json_files = sorted(glob.glob(f"{args.root}/*/trial_best_params/logs.json"))
     tasks = dict()
     for i in args.tasks:
         tasks[i] = [["model"]]
@@ -56,6 +56,9 @@ def main():
             log = json.load(r)
         task = log["config"]["data_name"]
         model_name = "_".join(log["config"]["run_name"].split("_")[1:-1])
+        if "test" not in log.keys():
+            print(file)
+            continue
         score = log["test"][0]
         row = []
         row.append(model_name)
