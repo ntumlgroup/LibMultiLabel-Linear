@@ -1,0 +1,68 @@
+# data
+training_file: data/ECtHRB/train.txt
+val_file: data/ECtHRB/valid.txt
+test_file: data/ECtHRB/test.txt
+data_name: ECtHRB
+min_vocab_freq: 1
+max_seq_length: 500
+include_test_labels: true
+remove_no_label_data: false
+add_special_tokens: false
+
+# train
+seed: 1337
+epochs: 50
+batch_size: 16
+optimizer: adam
+learning_rate: ['grid_search', [0.003, 0.001, 0.0003]]
+weight_decay: 0
+patience: 10
+shuffle: true
+
+
+# eval
+eval_batch_size: 16
+monitor_metrics: ['Another-Macro-F1', 'Macro-F1', 'Micro-F1', 'P@1', 'P@3', 'P@5', 'nDCG@5']
+early_stopping_metric: Micro-F1
+val_metric: Micro-F1
+
+# model
+model_name: BiLSTMLWAN_exps
+loss_function: binary_cross_entropy_with_logits
+init_weight: kaiming_uniform
+network_config:
+  attn_mode: tanh
+  output_mode: relu
+  embed_dropout: ['grid_search', [0.2, 0.4, 0.6]]
+  encoder_dropout: ['grid_search', [0.2, 0.4, 0.6]]
+  rnn_dim: ['grid_search', [256, 512, 1024]]
+  rnn_layers: 1
+  linear_size: ['grid_search', [[128], [256], [512]]]
+  freeze_embed: false
+
+# pretrained vocab / embeddings
+embed_file: glove.840B.300d
+normalize_embed: false
+vocab_file: null
+
+# hyperparamter search
+search_alg: basic_variant
+embed_cache_dir: .vector_cache
+num_samples: 1
+scheduler: null
+checkpoint_path: null
+cpu: false
+data_workers: 4
+eval: false
+label_file: null
+limit_train_batches: 1.0
+limit_val_batches: 1.0
+limit_test_batches: 1.0
+metric_threshold: 0.5
+result_dir: runs
+save_k_predictions: 0
+silent: true
+val_size: 0.2
+lr_scheduler: null
+scheduler_config: null
+momentum: 0

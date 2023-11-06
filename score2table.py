@@ -40,8 +40,8 @@ def make_markdown_table(array):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--root', default="runs")
-    parser.add_argument('-m', '--metrics', default=["Macro-F1", "Micro-F1", "P@5", "nDCG@5"])
-    parser.add_argument('-t', '--tasks', default=["EUR-Lex", "MIMIC-50"])
+    parser.add_argument('-m', '--metrics',nargs="*", default=["Macro-F1", "Micro-F1", "P@5", "nDCG@5"])
+    parser.add_argument('-t', '--tasks',nargs="*", default=["EUR-Lex", "MIMIC-50", "ECtHRA"])
 
     args = parser.parse_args()
 

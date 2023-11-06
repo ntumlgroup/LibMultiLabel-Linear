@@ -40,7 +40,7 @@ def train_libmultilabel_tune(config, datasets, classes, word_dict):
         classes=classes,
         word_dict=word_dict,
         search_params=True,
-        save_checkpoints=True,
+        save_checkpoints=False,
     )
     trainer.train()
 
