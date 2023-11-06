@@ -196,6 +196,7 @@ def init_trainer(
         limit_val_batches=limit_val_batches,
         limit_test_batches=limit_test_batches,
         deterministic="warn",
+        enable_checkpointing=False
     )
     return trainer
 
