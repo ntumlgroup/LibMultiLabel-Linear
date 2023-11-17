@@ -14,7 +14,7 @@ import numpy as np
 from libmultilabel.nn import data_utils
 from libmultilabel.nn.nn_utils import set_seed
 from libmultilabel.common_utils import AttributeDict, Timer
-from torch_trainer import TorchTrainer
+from torch_trainer_no_checkpoint import TorchTrainer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s:%(message)s")
 
@@ -40,7 +40,7 @@ def train_libmultilabel_tune(config, datasets, classes, word_dict):
         classes=classes,
         word_dict=word_dict,
         search_params=True,
-        save_checkpoints=True,
+        save_checkpoints=False,
     )
     trainer.train()
 
@@ -227,31 +227,31 @@ def retrain_best_model(exp_name, best_config, best_log_dir, retrain):
     with open(os.path.join(checkpoint_dir, "params.yml"), "w") as fp:
         yaml.dump(dict(best_config), fp)
 
-    data = load_static_data(best_config, merge_train_val=best_config.merge_train_val)
+    # data = load_static_data(best_config, merge_train_val=best_config.merge_train_val)
 
-    if retrain:
-        logging.info(f"Re-training with best config: \n{best_config}")
-        trainer = TorchTrainer(config=best_config, **data)
-        trainer.train()
-        best_model_path = trainer.checkpoint_callback.last_model_path
-    else:
-        # If not merging training and validation data, load the best result from tune experiments.
-        logging.info(f"Loading best model with best config: \n{best_config}")
-        best_checkpoint = os.path.join(best_log_dir, "best_model.ckpt")
-        last_checkpoint = os.path.join(best_log_dir, "last.ckpt")
-        best_model_path = os.path.join(checkpoint_dir, "best_model.ckpt")
-        best_config.checkpoint_path = best_checkpoint
-        trainer = TorchTrainer(config=best_config, **data)
-        os.popen(f"cp {best_checkpoint} {best_model_path}")
-        os.popen(f"cp {last_checkpoint} {os.path.join(checkpoint_dir, 'last.ckpt')}")
+    # if retrain:
+    #     logging.info(f"Re-training with best config: \n{best_config}")
+    #     trainer = TorchTrainer(config=best_config, **data)
+    #     trainer.train()
+    #     best_model_path = trainer.checkpoint_callback.last_model_path
+    # else:
+    #     # If not merging training and validation data, load the best result from tune experiments.
+    #     logging.info(f"Loading best model with best config: \n{best_config}")
+    #     best_checkpoint = os.path.join(best_log_dir, "best_model.ckpt")
+    #     last_checkpoint = os.path.join(best_log_dir, "last.ckpt")
+    #     best_model_path = os.path.join(checkpoint_dir, "best_model.ckpt")
+    #     best_config.checkpoint_path = best_checkpoint
+    #     trainer = TorchTrainer(config=best_config, **data)
+    #     os.popen(f"cp {best_checkpoint} {best_model_path}")
+    #     os.popen(f"cp {last_checkpoint} {os.path.join(checkpoint_dir, 'last.ckpt')}")
 
-    if "test" in data["datasets"]:
-        test_results = trainer.test()
-        if retrain:
-            logging.info(f"Test results after re-training: {test_results}")
-        else:
-            logging.info(f"Test results of best config: {test_results}")
-    logging.info(f"Best model saved to {best_model_path}.")
+    # if "test" in data["datasets"]:
+    #     test_results = trainer.test()
+    #     if retrain:
+    #         logging.info(f"Test results after re-training: {test_results}")
+    #     else:
+    #         logging.info(f"Test results of best config: {test_results}")
+    # logging.info(f"Best model saved to {best_model_path}.")
 
 
 def main():
@@ -331,7 +331,7 @@ def main():
     # Fix issue: https://github.com/ray-project/ray/issues/28197
     import ray
 
-    ray.init(address='auto', _node_ip_address='172.17.8.18', runtime_env={"env_vars": {"PL_DISABLE_FORK": "1"}})
+    ray.init(address='auto', _node_ip_address='172.17.7.14', runtime_env={"env_vars": {"PL_DISABLE_FORK": "1"}})
 
     exp_name = "{}_{}_{}".format(
         config.data_name,
@@ -348,6 +348,7 @@ def main():
         progress_reporter=reporter,
         config=config,
         name=exp_name,
+        checkpoint_at_end=False,
     )
 
     # Save best model after parameter search.

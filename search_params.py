@@ -348,6 +348,8 @@ def main():
         progress_reporter=reporter,
         config=config,
         name=exp_name,
+        checkpoint_freq=0,
+        checkpoint_at_end=False
     )
 
     # Save best model after parameter search.
