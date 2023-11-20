@@ -11,6 +11,7 @@ from .labelwise_attention_networks import BiLSTMLWMHAN
 from .labelwise_attention_networks import CNNLWAN
 from .labelwise_attention_networks import BiLSTMLWAN_exps
 from .labelwise_attention_networks import CNNLWAN_exps
+from .labelwise_attention_networks import BERTLWAN_exps
 
 
 def get_init_weight_func(init_weight):

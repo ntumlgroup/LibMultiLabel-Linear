@@ -2,21 +2,21 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.nn.init import xavier_uniform_
-import torch
+from transformers import AutoModel
 
 from .modules import (
+    AttentionRNNLinearOutput,
+    CNNEncoder,
     Embedding,
     GRUEncoder,
-    LSTMEncoder,
-    CNNEncoder,
     LabelwiseAttention,
-    diff_QV_LabelwiseAttention,
-    LabelwiseMultiHeadAttention,
     LabelwiseLinearOutput,
-    AttentionRNNLinearOutput,
+    LabelwiseMultiHeadAttention,
+    LSTMEncoder,
+    diff_QV_LabelwiseAttention,
 )
 
 
@@ -155,7 +155,7 @@ class BiLSTMLWAN(RNNLWAN):
         self.rnn_dim = rnn_dim
         self.rnn_layers = rnn_layers
         super(BiLSTMLWAN, self).__init__(embed_vecs, num_classes, embed_dropout, encoder_dropout, rnn_dim)
-    
+
     def _get_encoder(self, input_size, dropout):
         assert self.rnn_dim % 2 == 0, """`rnn_dim` should be even."""
         return LSTMEncoder(input_size, self.rnn_dim // 2, self.rnn_layers, dropout)
@@ -163,7 +163,7 @@ class BiLSTMLWAN(RNNLWAN):
     def _get_attention(self):
         return LabelwiseAttention(self.rnn_dim, self.num_classes)
 
-  
+
 class BiLSTMLWMHAN(LabelwiseAttentionNetwork):
     """BiLSTM Labelwise Multihead Attention Network
 
@@ -261,7 +261,7 @@ class CNNLWAN(LabelwiseAttentionNetwork):
         x = self.output(x)  # (batch_size, num_classes)
         return {"logits": x}
 
-    
+
 class CNNLWAN_exps(LabelwiseAttentionNetwork):
     """CNN Labelwise Attention Network
 
@@ -305,7 +305,6 @@ class CNNLWAN_exps(LabelwiseAttentionNetwork):
         if self.output_mode == "relu":
             self.output = AttentionRNNLinearOutput([self.hidden_dim] + linear_size, 1)
 
-        
     def _get_encoder(self, input_size, dropout):
         return CNNEncoder(
             input_size, self.filter_sizes, self.num_filter_per_size, self.activation, dropout, channel_last=True
@@ -348,7 +347,20 @@ class BiLSTMLWAN_exps(RNNLWAN):
         encoder_dropout (float): The dropout rate of the encoder output. Defaults to 0.
     """
 
-    def __init__(self, freeze_embed, embed_vecs, num_classes, attn_mode, output_mode,  d_a=None, linear_size=None, rnn_dim=512, rnn_layers=1, embed_dropout=0.2, encoder_dropout=0):
+    def __init__(
+        self,
+        freeze_embed,
+        embed_vecs,
+        num_classes,
+        attn_mode,
+        output_mode,
+        d_a=None,
+        linear_size=None,
+        rnn_dim=512,
+        rnn_layers=1,
+        embed_dropout=0.2,
+        encoder_dropout=0,
+    ):
         self.num_classes = num_classes
         self.rnn_dim = rnn_dim
         self.rnn_layers = rnn_layers
@@ -362,7 +374,7 @@ class BiLSTMLWAN_exps(RNNLWAN):
             self.W = nn.Linear(rnn_dim, self.d_a, bias=False)
         if self.output_mode == "relu":
             self.output = AttentionRNNLinearOutput([self.rnn_dim] + self.linear_size, 1)
-        
+
     def _get_encoder(self, input_size, dropout):
         assert self.rnn_dim % 2 == 0, """`rnn_dim` should be even."""
         return LSTMEncoder(input_size, self.rnn_dim // 2, self.rnn_layers, dropout)
@@ -391,4 +403,80 @@ class BiLSTMLWAN_exps(RNNLWAN):
         if self.attn_mode == "vanilla":
             x, _ = self.attention(H)  # (batch_size, num_classes, hidden_dim)
         x = self.output(x)  # (batch_size, num_classes)
+        return {"logits": x}
+
+
+class BERTLWAN_exps(nn.Module):
+    """BERT Labelwise Attention Network
+
+    Args:
+        num_classes (int): Total number of classes.
+        encoder_hidden_dropout (float): The dropout rate of the feed forward sublayer in each BERT layer. Defaults to 0.1.
+        encoder_attention_dropout (float): The dropout rate of the attention sublayer in each BERT layer. Defaults to 0.1.
+        post_encoder_dropout (float): The dropout rate of the dropout layer after the BERT model. Defaults to 0.
+        lm_weight (str): Pretrained model name or path. Defaults to 'bert-base-cased'.
+        lm_window (int): Length of the subsequences to be split before feeding them to
+            the language model. Defaults to 512.
+    """
+
+    def __init__(
+        self,
+        num_classes,
+        attn_mode,  # for labelwise attn
+        output_mode,  # for labelwise attn
+        encoder_hidden_dropout=0.1,
+        encoder_attention_dropout=0.1,
+        lm_weight="bert-base-cased",
+        d_a=None,  # W
+        linear_size=None,  # mlp
+        **kwargs,
+    ):
+        super().__init__()
+        self.num_classes = num_classes
+
+        # for labelwise attn
+        self.d_a = d_a
+        self.attn_mode = attn_mode
+        self.output_mode = output_mode
+
+        self.encoder = AutoModel.from_pretrained(
+            lm_weight,
+            torchscript=True,
+            hidden_dropout_prob=encoder_hidden_dropout,
+            attention_probs_dropout_prob=encoder_attention_dropout,
+        )
+        # no need to do post encoder dropout as we have hidden_dropout_prob?
+        # self.post_encoder_dropout = nn.Dropout(p=post_encoder_dropout)
+        self.hidden_dim = self.encoder.config.hidden_size
+        self.attention = self._get_attention()
+        self.output = LabelwiseLinearOutput(self.hidden_dim, num_classes)
+
+        if self.attn_mode == "tanhW":
+            self.W = nn.Linear(self.hidden_dim, self.d_a, bias=False)
+        if self.output_mode == "relu":
+            self.output = AttentionRNNLinearOutput([self.hidden_dim] + linear_size, 1)
+
+    def _get_attention(self):
+        if self.attn_mode == "tanhW":
+            return diff_QV_LabelwiseAttention(self.d_a, self.num_classes)
+        elif self.attn_mode == "tanh":
+            return diff_QV_LabelwiseAttention(self.hidden_dim, self.num_classes)
+        else:
+            return LabelwiseAttention(self.hidden_dim, self.num_classes)
+
+    def forward(self, input):
+        input_ids = input["text"]  # (batch_size, sequence_length)
+        # (batch_size, sequence_length, hidden_dim)
+        H = self.encoder(input_ids, attention_mask=input_ids != self.encoder.config.pad_token_id)[0]
+
+        if self.attn_mode == "tanhW":
+            Z = torch.tanh(self.W(H))
+            x, _ = self.attention(Z, H)  # (batch_size, num_classes, hidden_dim)
+        if self.attn_mode == "tanh":
+            Z = torch.tanh(H)
+            x, _ = self.attention(Z, H)  # (batch_size, num_classes, hidden_dim)
+        if self.attn_mode == "vanilla":
+            x, _ = self.attention(H)  # (batch_size, num_classes, hidden_dim)
+        x = self.output(x)  # (batch_size, num_classes)
+
         return {"logits": x}
