@@ -1,9 +1,9 @@
- # Yu-Chen's: https://github.com/JamesLYC88/text_classification_baseline_code/blob/main/config/scotus/bert_tune.yml
+# Yu-Chen's: https://github.com/JamesLYC88/text_classification_baseline_code/blob/main/config/ecthr_a/bert_tune.yml
 # data
-training_file: data/SCOTUS/train.txt
-val_file: data/SCOTUS/valid.txt
-test_file: data/SCOTUS/test.txt
-data_name: SCOTUS
+training_file: data/ECtHRA/train.txt
+val_file: data/ECtHRA/valid.txt
+test_file: data/ECtHRA/test.txt
+data_name: ECtHRA
 min_vocab_freq: 1
 max_seq_length: 512
 include_test_labels: true

@@ -1,9 +1,8 @@
- # Yu-Chen's: https://github.com/JamesLYC88/text_classification_baseline_code/blob/main/config/scotus/bert_tune.yml
 # data
-training_file: data/SCOTUS/train.txt
-val_file: data/SCOTUS/valid.txt
-test_file: data/SCOTUS/test.txt
-data_name: SCOTUS
+training_file: data/MIMIC-50/train.txt
+val_file: data/MIMIC-50/valid.txt
+test_file: data/MIMIC-50/test.txt
+data_name: MIMIC-50
 min_vocab_freq: 1
 max_seq_length: 512
 include_test_labels: true

@@ -1,8 +1,8 @@
 
-declare -A LEXGLUE_SRCS=( ["SCOTUS"]="scotus" ["ECtHRA"]="ecthr_a" ["ECtHRB"]="ecthr_b" ["EUR-Lex-LexGlue"]="eurlex" ["Unfair-TOS"]="unfair_tos")
+declare -A LEXGLUE_SRCS=( ["SCOTUS"]="scotus" ["ECtHRA"]="ecthr_a" ["ECtHRB"]="ecthr_b" ["EUR-Lex-LexGlue"]="eurlex" ["Unfair-TOS"]="unfair_tos" ["LEDGAR"]="ledgar")
 pwd="$(pwd)"
 
-for dataset in "SCOTUS" "ECtHRA" "ECtHRB" "EUR-Lex-LexGlue" "Unfair-TOS"
+for dataset in "${!LEXGLUE_SRCS[@]}"
 do
     # download data
     data_dir="data/$dataset"
@@ -12,15 +12,11 @@ do
         mkdir -p ${data_dir}
         cd ${data_dir}
 
-        if [ $dataset == "SCOTUS" ]; then
+        if [ $dataset == "SCOTUS" ] | [ $dataset == "LEDGAR" ]; then
             type="multiclass"
         else
             type="multilabel"
         fi
-        
-        echo $dataset
-        echo ${LEXGLUE_SRCS[$dataset]}
-        
         wget -c https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/$type/${LEXGLUE_SRCS[$dataset]}_lexglue_raw_texts_train.txt.bz2 -O train.txt.bz2
         wget -c https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/$type/${LEXGLUE_SRCS[$dataset]}_lexglue_raw_texts_val.txt.bz2 -O valid.txt.bz2
         wget -c https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/$type/${LEXGLUE_SRCS[$dataset]}_lexglue_raw_texts_test.txt.bz2 -O test.txt.bz2
