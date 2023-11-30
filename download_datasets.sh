@@ -12,7 +12,7 @@ do
         mkdir -p ${data_dir}
         cd ${data_dir}
 
-        if [ $dataset == "SCOTUS" ] | [ $dataset == "LEDGAR" ]; then
+        if [ $dataset == "SCOTUS" ] || [ $dataset == "LEDGAR" ]; then
             type="multiclass"
         else
             type="multilabel"
