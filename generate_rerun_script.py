@@ -11,14 +11,14 @@ if __name__ == "__main__":
 
     # tune_dir, tune_dir/
     exp_name = args.tune_dir.split("/")[-1] or args.tune_dir.split("/")[-2]
-    trial_dirs = [os.path.dirname(f) for f in glob.glob(
-        f"{args.tune_dir}/*/error.txt")]
+    trial_dirs = [os.path.dirname(f) for f in glob.glob(f"{args.tune_dir}/*/error.txt")]
 
     scripts = ""
     for trial_dir in trial_dirs:
         params_file = os.path.join(trial_dir, "params.json")
         config = json.load(open(params_file, "r"))
         config["result_dir"] = trial_dir
+        config["silent"] = False
 
         # dump rerun config to trial dir
         config_path = f"{trial_dir}/params_rerun.json"
