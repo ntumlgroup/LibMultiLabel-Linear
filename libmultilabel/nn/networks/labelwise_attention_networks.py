@@ -319,18 +319,34 @@ class CNNLWAN_exps(LabelwiseAttentionNetwork):
             return LabelwiseAttention(self.hidden_dim, self.num_classes)
 
     def forward(self, inputs):
+        # dump weights to pkl
+        import pickle
+
+        data = {}
+        data["inputs"] = inputs
+
         # (batch_size, sequence_length, embed_dim)
         x = self.embedding(inputs["text"])
+        data["x_embedding"] = x.detach().cpu().numpy()
+
         H = self.encoder(x)  # (batch_size, sequence_length, hidden_dim)
+        data["H"] = H.detach().cpu().numpy()
+
         if self.attn_mode == "tanhW":
             Z = torch.tanh(self.W(H))
             x, _ = self.attention(Z, H)  # (batch_size, num_classes, hidden_dim)
         if self.attn_mode == "tanh":
             Z = torch.tanh(H)
+            data["Z"] = Z.detach().cpu().numpy()
             x, _ = self.attention(Z, H)  # (batch_size, num_classes, hidden_dim)
+            data["x_attn"] = x.detach().cpu().numpy()
         if self.attn_mode == "vanilla":
             x, _ = self.attention(H)  # (batch_size, num_classes, hidden_dim)
         x = self.output(x)  # (batch_size, num_classes)
+        data["x_output"] = x.detach().cpu().numpy()
+
+        with open("4090_1st_batch_cnn_tanh_mlp.pkl", "wb") as f:
+            pickle.dump(data, f)
         return {"logits": x}
 
 
