@@ -50,6 +50,14 @@ def linear_train(datasets, config):
             config.tree_degree,
             config.tree_max_depth,
         )
+    elif config.linear_technique == "sampled_1vsrest":
+        model = LINEAR_TECHNIQUES[config.linear_technique](
+            datasets["train"]["y"],
+            datasets["train"]["x"],
+            config.sample_rate,
+            config.reweight,
+            options=config.liblinear_options,
+        )
     else:
         model = LINEAR_TECHNIQUES[config.linear_technique](
             datasets["train"]["y"],

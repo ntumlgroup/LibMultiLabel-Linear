@@ -209,7 +209,15 @@ def add_all_arguments(parser):
         "--linear_technique",
         type=str,
         default="1vsrest",
-        choices=["1vsrest", "thresholding", "cost_sensitive", "cost_sensitive_micro", "binary_and_multiclass", "tree"],
+        choices=[
+            "1vsrest",
+            "sampled_1vsrest",
+            "thresholding",
+            "cost_sensitive",
+            "cost_sensitive_micro",
+            "binary_and_multiclass",
+            "tree",
+        ],
         help="Technique for linear classification (default: %(default)s)",
     )
     parser.add_argument(
@@ -217,6 +225,16 @@ def add_all_arguments(parser):
         action="store_true",
         help="Save all the predictions with decision value larger then 0. If used, the save_k_predictions must be set to 0",
     )
+
+    # sampled 1vsrest options
+    parser.add_argument(
+        "--reweight",
+        type=str,
+        default="none",
+        choices=["none", "negatives", "both"],
+        help="Reweight type (default: %(default)s)",
+    )
+    parser.add_argument("--sample_rate", type=float, default=1, help="Sample rate (default: %(default)s)")
 
     # tree options
     parser.add_argument("--tree_degree", type=int, default=100, help="Degree of the tree (default: %(default)s)")

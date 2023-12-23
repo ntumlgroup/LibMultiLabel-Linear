@@ -111,6 +111,84 @@ def train_1vsrest(
     )
 
 
+def train_sampled_1vsrest(
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    sample_rate: float,
+    reweight: str,
+    options: str = "",
+    verbose: bool = True,
+) -> FlatModel:
+    """Trains a linear model for multiabel data using a one-vs-rest strategy.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        sample_rate (float): Negative sample rate, 1 is the same as ovr.
+        reweight (str): Whether and how to reweight to original regularization strength, one of {"none", "negatives", "both"}.
+        options (str, optional): The option string passed to liblinear. Defaults to ''.
+        verbose (bool, optional): Output extra progress information. Defaults to True.
+
+    Returns:
+        A model which can be used in predict_values.
+    """
+    # Follows the MATLAB implementation at https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/multilabel/
+    x, options, bias = _prepare_options(x, options)
+
+    def _prepare_sample(yi):
+        num_instances = yi.size
+        pos = yi.sum()
+        neg = num_instances - pos
+        sampled_neg = int(neg * sample_rate)
+        sampled_num_instances = pos + sampled_neg
+
+        if reweight == "both":
+            options_split = options.split()
+            weight_factor = num_instances / sampled_num_instances
+            if "-c" in options_split:
+                i = options_split.index("-c")
+                c = float(options_split[i + 1])
+                options_split[i + 1] = str(c * weight_factor)
+            else:
+                options_split.extend(["-c", str(weight_factor)])
+            sampled_options = " ".join(options_split)
+        elif reweight == "negatives":
+            sampled_options += f" -w-1 {1 / sample_rate}"
+
+        sampled_neg_indices = np.random.choice(
+            np.where(yi == 0)[0],
+            size=sampled_neg,
+            replace=False,
+        )
+        sampled_pos_indices = np.where(yi == 1)[0]
+        sampled_indices = np.hstack([sampled_pos_indices, sampled_neg_indices])
+
+        return sampled_options, sampled_indices
+
+    y = y.tocsc()
+    num_class = y.shape[1]
+    num_feature = x.shape[1]
+    weights = np.zeros((num_feature, num_class), order="F")
+
+    if verbose:
+        logging.info(f"Training sampled one-vs-rest model on {num_class} labels")
+
+    for i in tqdm(range(num_class), disable=not verbose):
+        yi = y[:, i].toarray().reshape(-1)
+        sampled_options, sampled_indices = _prepare_sample(yi)
+        sampled_yi = yi[sampled_indices]
+        sampled_x = x[sampled_indices]
+        weights[:, i] = _do_train(2 * sampled_yi - 1, sampled_x, sampled_options).ravel()
+
+    return FlatModel(
+        name="sampled-1vsrest",
+        weights=np.asmatrix(weights),
+        bias=bias,
+        thresholds=0,
+        multiclass=False,
+    )
+
+
 def _prepare_options(x: sparse.csr_matrix, options: str) -> tuple[sparse.csr_matrix, str, float]:
     """Prepare options and x for multi-label training. Called in the first line of
     any training function.

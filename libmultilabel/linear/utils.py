@@ -22,6 +22,7 @@ __all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchC
 
 LINEAR_TECHNIQUES = {
     "1vsrest": linear.train_1vsrest,
+    "sampled_1vsrest": linear.train_sampled_1vsrest,
     "thresholding": linear.train_thresholding,
     "cost_sensitive": linear.train_cost_sensitive,
     "cost_sensitive_micro": linear.train_cost_sensitive_micro,
