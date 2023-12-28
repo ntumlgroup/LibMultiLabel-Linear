@@ -154,7 +154,9 @@ def train_sampled_1vsrest(
                 options_split.extend(["-c", str(weight_factor)])
             sampled_options = " ".join(options_split)
         elif reweight == "negatives":
-            sampled_options += f" -w-1 {1 / sample_rate}"
+            sampled_options = options + f" -w-1 {1 / sample_rate}"
+        else:
+            sampled_options = options
 
         sampled_neg_indices = np.random.choice(
             np.where(yi == 0)[0],
