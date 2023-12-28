@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 __all__ = [
     "train_1vsrest",
+    "train_sampled_1vsrest",
     "train_thresholding",
     "train_cost_sensitive",
     "train_cost_sensitive_micro",
