@@ -134,6 +134,7 @@ def init_trainer(
     limit_test_batches=1.0,
     search_params=False,
     save_checkpoints=True,
+    seed=0
 ):
     """Initialize a torch lightning trainer.
 
@@ -183,9 +184,11 @@ def init_trainer(
         from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
         callbacks += [TuneReportCallback({f"val_{val_metric}": val_metric}, on="validation_end")]
+    from pytorch_lightning.loggers import WandbLogger
 
+    wandb_logger = WandbLogger(project="Reproduce", name=f"3090_{seed}")
     trainer = pl.Trainer(
-        logger=False,
+        logger=wandb_logger,
         num_sanity_val_steps=0,
         accelerator="cpu" if use_cpu else "gpu",
         devices=None if use_cpu else 1,
