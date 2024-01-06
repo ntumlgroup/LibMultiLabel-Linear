@@ -64,10 +64,10 @@ if ARGS.idx >= 0:
 
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     if not os.path.isfile(submodel_name):
-        #tmp, indices = linear.train_tree_subsample(
-        #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-        tmp, indices = linear.train_1vsrest_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
+        tmp, indices = linear.train_tree_subsample(
+                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        #tmp, indices = linear.train_1vsrest_subsample(
+        #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
         with open(submodel_name, "wb") as F:
             pickle.dump((tmp, indices), F)
 
@@ -92,10 +92,10 @@ else:
         np.random.seed(seed_pool[model_idx])
     
         if not os.path.isfile(submodel_name):
-            # tmp, indices = linear.train_tree_subsample(
-            #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-            tmp, indices = linear.train_1vsrest_subsample(
-                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
+            tmp, indices = linear.train_tree_subsample(
+                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+            # tmp, indices = linear.train_1vsrest_subsample(
+            #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
             with open(submodel_name, "wb") as F:
                 pickle.dump((tmp, indices), F)
         print("training one model cost:", time.time()-model_start, flush=True)
