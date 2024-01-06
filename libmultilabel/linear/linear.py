@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 __all__ = [
     "train_1vsrest",
+    "train_1vsrest_subsample",
     "train_thresholding",
     "train_cost_sensitive",
     "train_cost_sensitive_micro",
@@ -63,9 +64,11 @@ class FlatModel:
                 ],
                 "csr",
             )
+        #return (x * self.weights).A + self.thresholds
         import sparse_dot_mkl as sdm
         return sdm.dot_product_mkl(x, self.weights).A + self.thresholds
-        #return (x * self.weights).A + self.thresholds
+        #import blinkless.sparse as bls 
+        #return bls.mul_rrd(x, self.weights) + self.thresholds
 
 
 def train_1vsrest(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str = "", verbose: bool = True) -> FlatModel:
@@ -96,6 +99,33 @@ def train_1vsrest(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str = "",
 
     return FlatModel(name="1vsrest", weights=np.asmatrix(weights), bias=bias, thresholds=0)
 
+def train_1vsrest_subsample(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str = "", sample_rate=0.1, verbose: bool = True) -> TreeModel:
+    def subsample_indices(num_label: int, sample_rate: float) -> list:
+        indices = []
+        for idx in range(num_label):
+            if np.random.uniform(low=0.0, high=1.0) < sample_rate:
+                indices += [idx]
+        return indices
+
+    indices = subsample_indices(y.shape[1], sample_rate)
+    y = y[:,indices]
+    relevant_instances = y.getnnz(axis=1) > 0
+    y, x = y[relevant_instances], x[relevant_instances]
+
+    x, options, bias = _prepare_options(x, options)
+
+    y = y.tocsc()
+    num_class = y.shape[1]
+    num_feature = x.shape[1]
+    weights = np.zeros((num_feature, num_class), order="F")
+
+    if verbose:
+        logging.info(f"Training one-vs-rest model on {num_class} labels")
+    for i in tqdm(range(num_class), disable=not verbose):
+        yi = y[:, i].toarray().reshape(-1)
+        weights[:, i] = _do_train(2 * yi - 1, x, options).ravel()
+
+    return FlatModel(name="1vsrest", weights=np.asmatrix(weights), bias=bias, thresholds=0), indices
 
 def _prepare_options(x: sparse.csr_matrix, options: str) -> tuple[sparse.csr_matrix, str, float]:
     """Prepare options and x for multi-label training. Called in the first line of

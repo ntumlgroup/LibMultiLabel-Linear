@@ -18,6 +18,7 @@ class Node:
         self,
         label_map: np.ndarray,
         children: list[Node],
+        is_root: bool = False
     ):
         """
         Args:
@@ -26,6 +27,7 @@ class Node:
         """
         self.label_map = label_map
         self.children = children
+        self.is_root = is_root
 
     def isLeaf(self) -> bool:
         return len(self.children) == 0
@@ -65,7 +67,8 @@ class TreeModel:
         """
         # number of instances * number of labels + total number of metalabels
         all_preds = linear.predict_values(self.flat_model, x)
-        return np.vstack([self._beam_search(all_preds[i], beam_width) for i in range(all_preds.shape[0])])
+
+        return sparse.vstack([ sparse.csr_matrix( self._beam_search(all_preds[i], beam_width) ) for i in range(all_preds.shape[0])])
 
     def _beam_search(self, instance_preds: np.ndarray, beam_width: int) -> np.ndarray:
         """Predict with beam search using cached decision values for a single instance.
@@ -97,7 +100,8 @@ class TreeModel:
             next_level = []
 
         num_labels = len(self.root.label_map)
-        scores = np.full(num_labels, -np.inf)
+        #scores = np.full(num_labels, -np.inf)
+        scores = np.full(num_labels, 0.0)
         for node, score in cur_level:
             slice = np.s_[self.weight_map[node.index] : self.weight_map[node.index + 1]]
             pred = instance_preds[slice]
@@ -140,6 +144,7 @@ def train_tree_subsample(
     label_representation = (y.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
     root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    root.is_root = True
 
     num_nodes = 0
 
@@ -152,7 +157,10 @@ def train_tree_subsample(
     pbar = tqdm(total=num_nodes, disable=not verbose)
 
     def visit(node):
-        relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        if node.is_root == False:
+            relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        else:
+            relevant_instances = y[:, node.label_map].getnnz(axis=1) >= 0
         _train_node(y[relevant_instances], x[relevant_instances], options, node)
         pbar.update()
 
@@ -272,7 +280,7 @@ def _train_node(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: 
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, options, False)
 
-    node.model.weights = sparse.csr_matrix(node.model.weights)
+    node.model.weights = sparse.csc_matrix(node.model.weights)
 
 
 def _flatten_model(root: Node) -> tuple[linear.FlatModel, np.ndarray]:
