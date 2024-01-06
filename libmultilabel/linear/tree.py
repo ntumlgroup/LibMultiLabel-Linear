@@ -18,6 +18,7 @@ class Node:
         self,
         label_map: np.ndarray,
         children: list[Node],
+        is_root: bool = False
     ):
         """
         Args:
@@ -26,6 +27,7 @@ class Node:
         """
         self.label_map = label_map
         self.children = children
+        self.is_root = is_root
 
     def isLeaf(self) -> bool:
         return len(self.children) == 0
@@ -142,6 +144,7 @@ def train_tree_subsample(
     label_representation = (y.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
     root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    root.is_root = True
 
     num_nodes = 0
 
@@ -154,7 +157,10 @@ def train_tree_subsample(
     pbar = tqdm(total=num_nodes, disable=not verbose)
 
     def visit(node):
-        relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        if node.is_root == False:
+            relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        else:
+            relevant_instances = y[:, node.label_map].getnnz(axis=1) >= 0
         _train_node(y[relevant_instances], x[relevant_instances], options, node)
         pbar.update()
 
