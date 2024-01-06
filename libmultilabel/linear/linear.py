@@ -63,8 +63,9 @@ class FlatModel:
                 ],
                 "csr",
             )
-
-        return (x * self.weights).A + self.thresholds
+        import sparse_dot_mkl as sdm
+        return sdm.dot_product_mkl(x, self.weights).A + self.thresholds
+        #return (x * self.weights).A + self.thresholds
 
 
 def train_1vsrest(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str = "", verbose: bool = True) -> FlatModel:
