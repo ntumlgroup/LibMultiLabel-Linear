@@ -391,13 +391,15 @@ def get_embedding_weights_from_file(word_dict, embed_file, silent=False, cache=N
         vector_dict = pretrained_cls(cache=cache)
         embed_size = vector_dict.dim
 
-    embedding_weights = torch.zeros(len(word_dict), embed_size)
+    # embedding_weights = torch.zeros(len(word_dict), embed_size)
+    embedding_weights = torch.FloatTensor(len(word_dict), embed_size).uniform_(-1.0, 1.0)
 
     if load_embedding_from_file:
         # Add UNK embedding
         # AttentionXML: np.random.uniform(-1.0, 1.0, embed_size)
         # CAML: np.random.randn(embed_size)
-        unk_vector = torch.randn(embed_size)
+        # unk_vector = torch.randn(embed_size)
+        unk_vector = torch.FloatTensor(embed_size).uniform_(-1.0, 1.0)
         embedding_weights[word_dict[UNK]] = unk_vector
 
     # Store pretrained word embedding
