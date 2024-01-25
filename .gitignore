@@ -2,7 +2,7 @@
 /data/
 /example_config/
 /experiment_results/
-
+.github
 
 
 # Byte-compiled / optimized / DLL files
