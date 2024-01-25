@@ -110,7 +110,7 @@ def metrics_in_batches(model_name, batch_size):
         print("process batches id:", i, flush=True)
         start = time.time()
         tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
-        total_preds = np.zeros([tmp_data.shape[0], datasets["train"]["y"].shape[1]])
+        total_preds = np.zeros([tmp_data.shape[0], datasets["train"]["y"].shape[1]], order='F')
         total_cnts = np.zeros(datasets["train"]["y"].shape[1])
         for model_idx in range(ARGS.num_models):
             submodel_name = "./models/" + model_name + "-{}".format(model_idx)
@@ -123,10 +123,17 @@ def metrics_in_batches(model_name, batch_size):
         
             sub_start = time.time()
             preds = tmp.predict_values(tmp_data, beam_width=ARGS.beam_width)
-            for idx in range(len(indices)):
-                total_preds[:, indices[idx]] += preds[:, idx]
-                total_cnts[indices[idx]] += 1
-            print("sub cost:", time.time()-sub_start, flush=True)
+            print("preds cost:", time.time()-sub_start, flush=True)
+            sub_start = time.time()
+            preds = preds.toarray(order='F')
+            total_preds[:, indices] += preds
+            total_cnts[indices] += 1
+            #for idx in range(len(indices)):
+                #pred_one_label = preds.getcol(idx).toarray()
+                #pred_one_label = np.squeeze(pred_one_label)
+                #total_preds[:, indices[idx]] += pred_one_label
+                #total_cnts[indices[idx]] += 1
+            print("add preds cost:", time.time()-sub_start, flush=True)
 
         target = datasets["test"]["y"][i * batch_size : (i + 1) * batch_size].toarray()
         total_preds /= total_cnts+1e-16
@@ -142,10 +149,10 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
         data = os.path.basename(ARGS.datapath)
         )
 
-#metrics = metrics_in_batches(model_name, 10000)
+metrics = metrics_in_batches(model_name, 20000)
 #metrics = metrics_in_batches(model_name, 1000)
-predict_in_batches(model_name, 10000, ARGS.idx)
+#predict_in_batches(model_name, 10000, ARGS.idx)
 
-#print("mean in subsampled labels:", metrics)
+print("mean in subsampled labels:", metrics)
 
 print("Total time:", time.time()-training_start)
