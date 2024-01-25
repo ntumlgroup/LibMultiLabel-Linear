@@ -3,7 +3,8 @@
 /example_config/
 /experiment_results/
 .github
-
+.git-blame-ignore-revs
+.gitmodules
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
