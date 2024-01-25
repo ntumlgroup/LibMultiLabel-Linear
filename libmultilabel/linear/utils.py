@@ -19,7 +19,6 @@ from .preprocessor import Preprocessor
 
 __all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchCV"]
 
-
 LINEAR_TECHNIQUES = {
     "1vsrest": linear.train_1vsrest,
     "thresholding": linear.train_thresholding,
@@ -28,7 +27,6 @@ LINEAR_TECHNIQUES = {
     "binary_and_multiclass": linear.train_binary_and_multiclass,
     "tree": linear.train_tree,
 }
-
 
 def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
     """Saves preprocessor and model to checkpoint_dir/linear_pipline.pickle.
@@ -40,7 +38,7 @@ def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
     """
     pathlib.Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
     checkpoint_path = os.path.join(checkpoint_dir, "linear_pipeline.pickle")
-
+    model.mmap = None
     with open(checkpoint_path, "wb") as f:
         pickle.dump(
             {
@@ -50,6 +48,26 @@ def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
             f,
         )
 
+def save_pipeline_threshold_experiment(checkpoint_dir: str, preprocessor: Preprocessor, model, filename: str):
+    """Saves preprocessor and model to checkpoint_dir with a specific .pickle filename.
+
+    Args:
+        checkpoint_dir (str): The directory to save to.
+        preprocessor (Preprocessor): A Preprocessor.
+        model: A model returned from threshold experiment
+        filename: name of the model to save
+    """
+    pathlib.Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+    checkpoint_path = os.path.join(checkpoint_dir, filename)
+
+    with open(checkpoint_path, "wb") as f:
+        pickle.dump(
+            {
+                "preprocessor": preprocessor,
+                "model": model,
+            },
+            f,
+        )
 
 def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     """Loads preprocessor and model from checkpoint_path.
@@ -64,6 +82,30 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
         pipeline = pickle.load(f)
     return (pipeline["preprocessor"], pipeline["model"])
 
+def threshold_smart_indexing(model, threshold: float, threshold_type: str): 
+    """Threshold model weights based on a given value and model
+
+    Args:
+        model: A baseline model that needs to be pruned
+        threshold: A set value to threshold at
+        threshold_type: Indicates which type of linear technique to threshold for
+
+    Returns:
+        model: A object of the threshold model
+    """
+
+    d = model
+    if threshold_type == "tree":
+        d.flat_model.weights.data[np.abs(d.flat_model.weights.data) < threshold] = 0
+        d.flat_model.weights.eliminate_zeros()
+    elif threshold_type == "1vsrest":
+        w = d.weights.copy()
+        abs_w = np.abs(w)
+        w[abs_w < threshold] = 0
+        w.eliminate_zeros()
+        d.weights = w
+    d.mmap = None
+    return d
 
 class MultiLabelEstimator(sklearn.base.BaseEstimator):
     """Customized sklearn estimator for the multi-label classifier.
@@ -102,7 +144,6 @@ class MultiLabelEstimator(sklearn.base.BaseEstimator):
         metrics.update(preds, y.toarray())
         metric_dict = metrics.compute()
         return metric_dict[self.scoring_metric]
-
 
 class GridSearchCV(sklearn.model_selection.GridSearchCV):
     """A customized `sklearn.model_selection.GridSearchCV`` class for Liblinear.

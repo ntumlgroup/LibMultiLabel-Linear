@@ -6,12 +6,14 @@ data_name: EUR-Lex
 # train
 seed: 1337
 linear: true
-liblinear_options: "-s 2 -B 1 -e 0.0001 -q"
+# liblinear_options: "-s 5 -B 1 -e 0.0001 -q"
+# liblinear_options: "-s 5 -B 1 -e 0.0001 -q"
+liblinear_options: "-s 1 -B 1 -e 0.0001 -q"
 linear_technique: tree
 
 # eval
 eval_batch_size: 256
-monitor_metrics: [P@1, P@3, P@5]
+monitor_metrics: [P@1, P@2,  P@3, P@4,  P@5, P@6, P@7, P@8, P@9,  P@10, P@11, P@12, P@13, P@14, P@15, NDCG@1, NDCG@2, NDCG@3, NDCG@4, NDCG@5, NDCG@6, NDCG@7, NDCG@8, NDCG@9, NDCG@10, NDCG@11, NDCG@12, NDCG@13, NDCG@14, NDCG@15, R@1, R@10, R@50, R@75, R@100]
 metric_threshold: 0
 
 data_format: txt

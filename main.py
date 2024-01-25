@@ -231,6 +231,8 @@ def add_all_arguments(parser):
         "See example configs in example_config",
     )
 
+    parser.add_argument("--log_name", type=str, default='log.json')
+
 
 def get_config():
     parser = argparse.ArgumentParser(add_help=False, description="multi-label learning for text classification")
@@ -253,14 +255,17 @@ def get_config():
     if not hasattr(args, "scheduler_config"):
         args.scheduler_config = None
     config = AttributeDict(vars(args))
-
+    '''
     config.run_name = "{}_{}_{}".format(
         config.data_name,
         Path(config.config).stem if config.config else config.model_name,
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
-    config.checkpoint_dir = os.path.join(config.result_dir, config.run_name)
-    config.log_path = os.path.join(config.checkpoint_dir, "logs.json")
+    '''
+    config_run_name = config.log_name 
+
+    config.checkpoint_dir = os.path.join(config.result_dir)
+    config.log_path = os.path.join(config.checkpoint_dir, config.log_name)
     config.predict_out_path = config.predict_out_path or os.path.join(config.checkpoint_dir, "predictions.txt")
 
     return config
