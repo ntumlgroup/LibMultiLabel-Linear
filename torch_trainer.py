@@ -212,13 +212,13 @@ class TorchTrainer:
 
         # Set model to the best model. If the validation process is skipped during
         # training (i.e., val_size=0), the model is set to the last model.
-        model_path = self.checkpoint_callback.best_model_path or self.checkpoint_callback.last_model_path
+        model_path = self.checkpoint_callback.best_model_path or self.checkpoint_callback.last_model_path if self.checkpoint_callback else None
         if model_path:
             logging.info(f"Finished training. Load best model from {model_path}.")
             self._setup_model(checkpoint_path=model_path, log_path=self.log_path)
         else:
             logging.info(
-                "No model is saved during training. \
+                "No model is saved during training. The model state at the end of training will be used for testing. (if testing data is provided.) \
                 If you want to save the best and the last model, please set `save_checkpoints` to True."
             )
 
