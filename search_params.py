@@ -302,6 +302,11 @@ def main():
         action="store_true",
         help="Do not save model checkpoints during tuning. Can be used to avoid mass storage use, but additional training process of the best config will take place.",
     )
+    # tmp add seed
+    parser.add_argument(
+        "--seed",
+        type=int,
+    )
     args, _ = parser.parse_known_args()
 
     # Load config from the config file and overwrite values specified in CLI.
@@ -310,6 +315,8 @@ def main():
     config = init_search_params_spaces(config, parameter_columns, prefix="")
     parser.set_defaults(**config)
     config = AttributeDict(vars(parser.parse_args()))
+    # tmp add seed
+    config.seed = args.seed
     # no need to include validation during parameter search
     config.no_checkpoint = args.no_checkpoint
     config.merge_train_val = False
