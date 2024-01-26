@@ -40,7 +40,7 @@ def train_libmultilabel_tune(config, datasets, classes, word_dict):
         classes=classes,
         word_dict=word_dict,
         search_params=True,
-        save_checkpoints=True,
+        save_checkpoints=not config.no_checkpoint,
     )
     trainer.train()
 
@@ -205,7 +205,7 @@ def load_static_data(config, merge_train_val=False):
     }
 
 
-def retrain_best_model(exp_name, best_config, best_log_dir, retrain):
+def retrain_best_model(exp_name, best_config, best_log_dir, retrain, checkpoint):
     """Re-train the model with the best hyper-parameters.
     A new model is trained on the combined training and validation data if `retrain` is True.
     If a test set is provided, it will be evaluated by the obtained model.
@@ -235,15 +235,22 @@ def retrain_best_model(exp_name, best_config, best_log_dir, retrain):
         trainer.train()
         best_model_path = trainer.checkpoint_callback.last_model_path
     else:
-        # If not merging training and validation data, load the best result from tune experiments.
-        logging.info(f"Loading best model with best config: \n{best_config}")
-        best_checkpoint = os.path.join(best_log_dir, "best_model.ckpt")
-        last_checkpoint = os.path.join(best_log_dir, "last.ckpt")
-        best_model_path = os.path.join(checkpoint_dir, "best_model.ckpt")
-        best_config.checkpoint_path = best_checkpoint
-        trainer = TorchTrainer(config=best_config, **data)
-        os.popen(f"cp {best_checkpoint} {best_model_path}")
-        os.popen(f"cp {last_checkpoint} {os.path.join(checkpoint_dir, 'last.ckpt')}")
+        # If no checkpoints were saved during tuning, trained the model with the best config that will be used for testing.
+        if not checkpoint:
+            logging.info(f"Since checkpointing was disabled during tuning, training the model with best config: \n{best_config}")
+            trainer = TorchTrainer(config=best_config, **data)
+            trainer.train()
+            best_model_path = trainer.checkpoint_callback.best_model_path
+        # If checkpoints were saved during tuning, load the best result from tune experiments.
+        else:
+            logging.info(f"Loading best model with best config: \n{best_config}")
+            best_checkpoint = os.path.join(best_log_dir, "best_model.ckpt")
+            last_checkpoint = os.path.join(best_log_dir, "last.ckpt")
+            best_model_path = os.path.join(checkpoint_dir, "best_model.ckpt")
+            best_config.checkpoint_path = best_checkpoint
+            trainer = TorchTrainer(config=best_config, **data)
+            os.popen(f"cp {best_checkpoint} {best_model_path}")
+            os.popen(f"cp {last_checkpoint} {os.path.join(checkpoint_dir, 'last.ckpt')}")
 
     if "test" in data["datasets"]:
         test_results = trainer.test()
@@ -290,6 +297,11 @@ def main():
         action="store_true",
         help="Do not retrain the model with validation set after hyperparameter search.",
     )
+    parser.add_argument(
+        "--no_checkpoint",
+        action="store_true",
+        help="Do not save model checkpoints during tuning. Can be used to avoid mass storage use, but additional training process of the best config will take place.",
+    )
     args, _ = parser.parse_known_args()
 
     # Load config from the config file and overwrite values specified in CLI.
@@ -299,6 +311,7 @@ def main():
     parser.set_defaults(**config)
     config = AttributeDict(vars(parser.parse_args()))
     # no need to include validation during parameter search
+    config.no_checkpoint = args.no_checkpoint
     config.merge_train_val = False
     config.mode = "min" if config.val_metric == "Loss" else "max"
 
@@ -354,7 +367,7 @@ def main():
     # Save best model after parameter search.
     best_config = analysis.get_best_config(f"val_{config.val_metric}", config.mode, scope="all")
     best_log_dir = analysis.get_best_logdir(f"val_{config.val_metric}", config.mode, scope="all")
-    retrain_best_model(exp_name, best_config, best_log_dir, retrain=not config.no_retrain)
+    retrain_best_model(exp_name, best_config, best_log_dir, retrain=not config.no_retrain, checkpoint=not config.no_checkpoint)
 
 
 if __name__ == "__main__":
