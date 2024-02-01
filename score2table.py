@@ -1,6 +1,7 @@
 import glob
 import sys, json
 import argparse
+import pandas as pd
 
 def make_markdown_table(array):
 
@@ -36,6 +37,9 @@ def make_markdown_table(array):
 
     return markdown + "\n"
 
+def make_csv_table(array):
+    df = pd.DataFrame(array)
+    return df.to_csv(index=False, header=False)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -69,8 +73,10 @@ def main():
     
     for task in tasks.keys():
         print(f"{task}:")
-        md = make_markdown_table(tasks[task])
-        print(md)    
+        if args.csv:
+            print(make_csv_table(tasks[task]))
+        else:
+            print(make_markdown_table(tasks[task]))    
 
 if __name__ == "__main__":
     main()
