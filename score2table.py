@@ -46,6 +46,7 @@ def main():
     parser.add_argument('-r', '--root', default="runs")
     parser.add_argument('-m', '--metrics',nargs="*", default=["Macro-F1", "Micro-F1", "P@5", "nDCG@5"])
     parser.add_argument('-t', '--tasks',nargs="*", default=["EUR-Lex", "MIMIC-50", "ECtHRA"])
+    parser.add_argument('-c', '--csv', action='store_true')
 
     args = parser.parse_args()
 
