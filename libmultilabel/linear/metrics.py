@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 import numpy as np
+import scipy
 
 __all__ = ["get_metrics", "compute_metrics", "tabulate_metrics", "MetricCollection"]
 
@@ -230,6 +231,26 @@ class F1:
         self.tp = self.fp = self.fn = 0
 
 
+def cross_entropy(y, p):
+    return -np.sum(y * np.log2(p) + (1 - y) * np.log2(1 - p))
+
+
+class CrossEntropy:
+    def __init__(self):
+        self.score = 0
+        self.num_sample = 0
+
+    def update(self, preds: np.ndarray, target: np.ndarray):
+        self.score += cross_entropy(target, scipy.special.expit(preds))
+        self.num_sample += preds.shape[0] * preds.shape[1]
+
+    def compute(self) -> float:
+        return self.score / self.num_sample
+
+    def reset(self):
+        self.score = self.num_sample = 0
+
+
 class MetricCollection(dict):
     """A collection of metrics created by get_metrics.
     MetricCollection computes metric values in two steps. First, batches of
@@ -305,6 +326,8 @@ def get_metrics(monitor_metrics: list[str], num_classes: int, multiclass: bool =
             metrics[metric] = NDCG(top_k=int(metric[5:]))
         elif metric in {"Another-Macro-F1", "Macro-F1", "Micro-F1"}:
             metrics[metric] = F1(num_classes, average=metric[:-3].lower(), multiclass=multiclass)
+        elif metric == "CrossEntropy":
+            metrics[metric] = CrossEntropy()
         else:
             raise ValueError(f"invalid metric: {metric}")
 

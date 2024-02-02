@@ -31,6 +31,8 @@ def linear_test(config, model, datasets, label_mapping):
             labels.append(res[0])
             scores.append(res[1])
     metric_dict = metrics.compute()
+    avg = datasets["test"]["y"].mean()
+    metric_dict["Entropy"] = -(avg * np.log2(avg) + (1 - avg) * np.log2(1 - avg))
     return metric_dict, labels, scores
 
 
