@@ -10,7 +10,9 @@ from libmultilabel.linear.utils import LINEAR_TECHNIQUES
 
 
 def linear_test(config, model, datasets, label_mapping):
-    metrics = linear.get_metrics(config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=model.multiclass)
+    metrics = linear.get_metrics(
+        config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=getattr(model, "multiclass", False)
+    )
     num_instance = datasets["test"]["x"].shape[0]
     k = config.save_k_predictions
     if k > 0:
