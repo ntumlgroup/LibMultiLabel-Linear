@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+from functools import wraps
 
 import numpy as np
 
@@ -16,48 +17,33 @@ class AttributeDict(dict):
     >>> 42
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        object.__setattr__(self, "_used", set())
+
     def __getattr__(self, key: str) -> any:
         try:
-            return self[key]
+            value = self[key]
+            self._used.add(key)
+            return value
         except KeyError:
             raise AttributeError(f'Missing attribute "{key}"')
 
     def __setattr__(self, key: str, value: any) -> None:
         self[key] = value
+        self._used.discard(key)
 
+    def used_items(self) -> dict:
+        """Returns the items that have been used at least once after being set.
 
-class Timer(object):
-    """Computes elasped time."""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.running = True
-        self.total = 0
-        self.start = time.time()
-        return self
-
-    def resume(self):
-        if not self.running:
-            self.running = True
-            self.start = time.time()
-        return self
-
-    def stop(self):
-        if self.running:
-            self.running = False
-            self.total += time.time() - self.start
-        return self
-
-    def time(self):
-        if self.running:
-            return self.total + time.time() - self.start
-        return self.total
+        Returns:
+            dict: the used items.
+        """
+        return {k: self[k] for k in self._used}
 
 
 def dump_log(log_path, metrics=None, split=None, config=None):
-    """Write log including config and the evaluation scores.
+    """Write log including the used items of config and the evaluation scores.
 
     Args:
         log_path(str): path to log path
@@ -73,7 +59,7 @@ def dump_log(log_path, metrics=None, split=None, config=None):
         result = dict()
 
     if config:
-        config_to_save = copy.deepcopy(dict(config))
+        config_to_save = copy.deepcopy(config.used_items())
         config_to_save.pop("device", None)  # delete if device exists
         result["config"] = config_to_save
     if split and metrics:
@@ -121,6 +107,18 @@ def is_multiclass_dataset(dataset, label="label"):
     else:
         label_sizes = dataset[label].sum(axis=1)
 
+    # TODO: separate logging message from the function
+    # detect unlabeled ratio
+    ratio = (label_sizes == 0).sum() / label_sizes.shape[0]
+    threshold = 0.1
+    if ratio >= threshold:
+        logging.warning(
+            f"""About {ratio * 100:.1f}% (>= {threshold * 100:.1f}%) instances in the dataset are unlabeled.
+            LibMultiLabel doesn't treat unlabeled data in a special way.
+            Thus, the metrics you see will not be accurate.
+            We suggest you either apply preprocessing to the data or modify the metric classes."""
+        )
+
     ratio = float((label_sizes == 1).sum()) / len(label_sizes)
     if ratio > 0.999 and ratio != 1.0:
         logging.info(
@@ -129,3 +127,17 @@ def is_multiclass_dataset(dataset, label="label"):
             a multi-class problem."""
         )
     return ratio == 1.0
+
+
+def timer(func):
+    """Log info-level wall time"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        value = func(*args, **kwargs)
+        wall_time = time.time() - start_time
+        logging.info(f"{repr(func.__name__)} finished in {wall_time:.2f} seconds")
+        return value
+
+    return wrapper

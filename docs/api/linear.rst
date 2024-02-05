@@ -58,12 +58,13 @@ Metrics are specified by their names in ``compute_metrics`` and ``get_metrics``.
 The possible metric names are:
 
 * ``'P@K'``, where ``K`` is a positive integer
+* ``'R@K'``, where ``K`` is a positive integer
 * ``'RP@K'``, where ``K`` is a positive integer
 * ``'NDCG@K'``, where ``K`` is a positive integer
 * ``'Macro-F1'``
 * ``'Micro-F1'``
 
-.. Their definitions are given in the `user guide <https://www.csie.ntu.edu.tw/~cjlin/papers/libmultilabel/userguide.pdf>`_.
+Their definitions are given in the `implementation document <https://www.csie.ntu.edu.tw/~cjlin/papers/libmultilabel/libmultilabel_implementation.pdf>`_.
 
 .. autofunction:: compute_metrics
 

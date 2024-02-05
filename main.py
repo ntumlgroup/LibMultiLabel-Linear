@@ -9,7 +9,7 @@ import numba
 import yaml
 
 warnings.filterwarnings("ignore", category=numba.NumbaDeprecationWarning)
-from libmultilabel.common_utils import Timer, AttributeDict
+from libmultilabel.common_utils import AttributeDict, timer
 from libmultilabel.logging import add_stream_handler, add_collect_handler
 
 
@@ -135,7 +135,7 @@ def add_all_arguments(parser):
         "--monitor_metrics",
         nargs="+",
         default=["P@1", "P@3", "P@5"],
-        help="Metrics to monitor while validating (default: %(default)s)",
+        help="Metrics to monitor for evaluation (default: %(default)s)",
     )
     parser.add_argument(
         "--val_metric", default="P@1", help="The metric to select the best model for testing (default: %(default)s)"
@@ -290,6 +290,7 @@ def check_config(config):
     return None
 
 
+@timer
 def main():
     # Get config
     config = get_config()
@@ -324,6 +325,4 @@ def main():
 
 
 if __name__ == "__main__":
-    wall_time = Timer()
     main()
-    print(f"Wall time: {wall_time.time():.2f} (s)")
