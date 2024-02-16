@@ -29,7 +29,7 @@ val_metric: 'Micro-F1'
 model_name: KimCNN
 init_weight: xavier_uniform
 network_config:
-  activation: tanh
+  activation: null
   embed_dropout: 0.2
   post_encoder_dropout: 0.2
   filter_sizes: [4]

@@ -1,8 +1,8 @@
 # data
-training_file: data/MIMIC-50/train.txt
-val_file: data/MIMIC-50/valid.txt
-test_file: data/MIMIC-50/test.txt
-data_name: MIMIC-50
+training_file: data/SCOTUS/train.txt
+val_file: data/SCOTUS/valid.txt
+test_file: data/SCOTUS/test.txt
+data_name: SCOTUS
 min_vocab_freq: 1
 max_seq_length: 500
 include_test_labels: true
@@ -18,7 +18,7 @@ optimizer: adam
 learning_rate: 0.003
 weight_decay: 0
 patience: 10
-shuffle: true
+shuffle: false
 
 # eval
 eval_batch_size: 16
@@ -36,6 +36,6 @@ network_config:
   num_filter_per_size: 500
 
 # pretrained vocab / embeddings
-vocab_file: data/MIMIC-50/vocab.csv
-embed_file: data/MIMIC-50/processed_full.embed
-normalize_embed: true
+embed_file: glove.840B.300d
+normalize_embed: false
+vocab_file: null

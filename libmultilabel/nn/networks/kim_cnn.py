@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .modules import Embedding, CNNEncoder
 
@@ -30,14 +31,16 @@ class KimCNN(nn.Module):
         super(KimCNN, self).__init__()
         self.embedding = Embedding(embed_vecs, dropout=embed_dropout)
         self.encoder = CNNEncoder(
-            embed_vecs.shape[1], filter_sizes, num_filter_per_size, activation, post_encoder_dropout, num_pool=1
+            embed_vecs.shape[1], filter_sizes, num_filter_per_size, "tanh", post_encoder_dropout, num_pool=1
         )
         conv_output_size = num_filter_per_size * len(filter_sizes)
         self.linear = nn.Linear(conv_output_size, num_classes)
+        self.activation = getattr(torch, activation, getattr(F, activation)) if activation else None    
 
     def forward(self, input):
         x = self.embedding(input["text"])  # (batch_size, length, embed_dim)
         x = self.encoder(x)  # (batch_size, num_filter, 1)
+        x = self.activation(x) if self.activation else x
         x = torch.squeeze(x, 2)  # (batch_size, num_filter)
         x = self.linear(x)  # (batch_size, num_classes)
         return {"logits": x}
