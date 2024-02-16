@@ -4,6 +4,7 @@ from .bert import BERT
 from .bert_attention import BERTAttention
 from .caml import CAML
 from .kim_cnn import KimCNN
+from .lstm import BiLSTM_classifier
 from .xml_cnn import XMLCNN
 from .labelwise_attention_networks import BiGRULWAN
 from .labelwise_attention_networks import BiLSTMLWAN

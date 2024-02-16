@@ -1,0 +1,43 @@
+# data
+training_file: data/SCOTUS/train.txt
+val_file: data/SCOTUS/valid.txt
+test_file: data/SCOTUS/test.txt
+data_name: SCOTUS
+min_vocab_freq: 1
+max_seq_length: 500
+include_test_labels: true
+# Follow https://github.com/jamesmullenbach/caml-mimic/blob/master/datasets.py#L45
+# to remove training and validation instances that have no labels.
+remove_no_label_data: true
+
+# train
+seed: 1337
+epochs: 50
+batch_size: 16
+optimizer: adam
+learning_rate: 0.001
+weight_decay: 0
+patience: 10
+shuffle: true
+
+# eval
+eval_batch_size: 16
+monitor_metrics: ['Micro-F1', 'Macro-F1', 'Another-Macro-F1', 'P@1', 'P@3', 'P@5']
+val_metric: 'Micro-F1'
+
+# model
+model_name: BiLSTM_classifier
+loss_function: binary_cross_entropy_with_logits
+init_weight: kaiming_uniform
+network_config:
+  activation: null
+  embed_dropout: 0.2
+  encoder_dropout: 0.2
+  rnn_dim: 512
+  rnn_layers: 1
+
+
+# pretrained vocab / embeddings
+embed_file: glove.840B.300d
+normalize_embed: false
+vocab_file: null
