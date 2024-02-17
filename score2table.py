@@ -39,7 +39,11 @@ def make_markdown_table(array):
 
 def make_csv_table(array):
     df = pd.DataFrame(array)
-    return df.to_csv(index=False, header=False)
+    new_header = df.iloc[0]
+    df = df[1:]
+    df.columns = new_header
+    df = df.groupby('model').mean().reset_index()
+    return df.to_csv(index=False, header=True)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -47,10 +51,10 @@ def main():
     parser.add_argument('-m', '--metrics',nargs="*", default=["Macro-F1", "Micro-F1", "P@5", "nDCG@5"])
     parser.add_argument('-t', '--tasks',nargs="*", default=["EUR-Lex", "MIMIC-50", "ECtHRA"])
     parser.add_argument('-c', '--csv', action='store_true')
+    parser.add_argument('-s', '--search', action='store_true')
 
     args = parser.parse_args()
-
-    json_files = sorted(glob.glob(f"{args.root}/*/trial_best_params/logs.json"))
+    json_files = sorted(glob.glob(f"{args.root}/*/trial_best_params/logs.json")) if args.search else sorted(glob.glob(f"{args.root}/*/logs.json"))
     tasks = dict()
     for i in args.tasks:
         tasks[i] = [["model"]]
