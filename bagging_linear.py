@@ -43,63 +43,32 @@ training_start = time.time()
 # model.bias /= num_models
 # 
 # preds = linear.predict_values(model, datasets["test"]["x"])
+
 def predict_in_batches(model_name, batch_size, model_idx):
     num_instances = datasets["test"]["x"].shape[0]
     num_batches = math.ceil(num_instances / batch_size)
 
-    if model_idx >= 0:
-        submodel_name = "./models/" + model_name + "-{}".format(model_idx)
+    submodel_name = "./models/" + model_name + "-{}".format(model_idx)
+    sub_start = time.time()
+    with open(submodel_name, "rb") as F:
+        tmp = pickle.load(F)
+    tmp, indices = tmp
+    print("model loaded:", time.time()-sub_start, flush=True)
+
+    for i in range(num_batches):
+        print("process batches id:", i, flush=True)
+        pred_name = "./preds/" + model_name + "-{}".format(model_idx) + "_batch-idx-{}".format(i)
+        if os.path.isfile(pred_name):
+            continue
+        tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
         sub_start = time.time()
-        with open(submodel_name, "rb") as F:
-            tmp = pickle.load(F)
-        tmp, indices = tmp
-        print("{}th model loaded:".format(model_idx), time.time()-sub_start, flush=True)
-    
-        for i in range(num_batches):
-            pred_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx) + "_batch-idx-{}".format(i) 
-            if os.path.isfile(pred_name):
-                continue
-
-            sub_start = time.time()
-            print("process batches id:", i, flush=True)
-            start = time.time()
-            tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
-            preds = tmp.predict_values(tmp_data, beam_width=ARGS.beam_width)
-            print("sub cost:", time.time()-sub_start, flush=True)
-
-            print("dump {}th preds".format(model_idx), flush=True)
-            sub_start = time.time()
-            with open(pred_name, "wb") as F:
-                pickle.dump((preds, indices), F)
-            print("dump cost:", time.time()-sub_start, flush=True)
-
-    else:
-        for model_idx in range(ARGS.num_models):
-            submodel_name = "./models/" + model_name + "-{}".format(model_idx)
-            sub_start = time.time()
-            with open(submodel_name, "rb") as F:
-                tmp = pickle.load(F)
-            tmp, indices = tmp
-            print("{}th model loaded:".format(model_idx), time.time()-sub_start, flush=True)
+        preds = tmp.predict_values(tmp_data, beam_width=ARGS.beam_width)
+        print("preds cost:", time.time()-sub_start, flush=True)
+        sub_start = time.time()
+        with open(pred_name, "wb") as F:
+            pickle.dump((preds, indices), F)
+        print("dump cost:", time.time()-sub_start, flush=True)
         
-            for i in range(num_batches):
-                pred_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx) + "_batch-idx-{}".format(i) 
-                if os.path.isfile(pred_name):
-                    continue
-
-                sub_start = time.time()
-                print("process batches id:", i, flush=True)
-                start = time.time()
-                tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
-                preds = tmp.predict_values(tmp_data, beam_width=ARGS.beam_width)
-                print("sub cost:", time.time()-sub_start, flush=True)
-
-                print("dump {}th preds".format(model_idx), flush=True)
-                sub_start = time.time()
-                with open(pred_name, "wb") as F:
-                    pickle.dump((preds, indices), F)
-                print("dump cost:", time.time()-sub_start, flush=True)
-
 
 def metrics_in_batches(model_name, batch_size):
     num_instances = datasets["test"]["x"].shape[0]
@@ -128,11 +97,6 @@ def metrics_in_batches(model_name, batch_size):
             preds = preds.toarray(order='F')
             total_preds[:, indices] += preds
             total_cnts[indices] += 1
-            #for idx in range(len(indices)):
-                #pred_one_label = preds.getcol(idx).toarray()
-                #pred_one_label = np.squeeze(pred_one_label)
-                #total_preds[:, indices[idx]] += pred_one_label
-                #total_cnts[indices[idx]] += 1
             print("add preds cost:", time.time()-sub_start, flush=True)
 
         target = datasets["test"]["y"][i * batch_size : (i + 1) * batch_size].toarray()
@@ -149,9 +113,9 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
         data = os.path.basename(ARGS.datapath)
         )
 
-metrics = metrics_in_batches(model_name, 20000)
+#metrics = metrics_in_batches(model_name, 20000)
 #metrics = metrics_in_batches(model_name, 1000)
-#predict_in_batches(model_name, 10000, ARGS.idx)
+predict_in_batches(model_name, 10000, ARGS.idx)
 
 print("mean in subsampled labels:", metrics)
 
