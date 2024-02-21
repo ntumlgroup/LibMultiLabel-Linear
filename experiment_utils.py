@@ -3,7 +3,7 @@ warnings.filterwarnings("ignore", message=".*")
 import os
 import json
 from libmultilabel.linear.utils import load_pipeline, save_pipeline_threshold_experiment
-from matplotlib.ticker import FormatStrFormatter
+# from matplotlib.ticker import FormatStrFormatter
 from collections import defaultdict 
 import matplotlib.pyplot as plt
 import argparse
@@ -17,25 +17,30 @@ def create_graph(log_dir, metrics):
     metrics_score = defaultdict(list) # y
     metrics = metrics.split("/")
     for filename in os.listdir(log_dir):
-        if ".json" not in filename or "linear" in filename:
-            print(filename)
+        # if ".json" not in filename or "linear" in filename:
+        #     continue
+
+        thresh = filename.rsplit("--",1)[-1]
+        if '.pickle.json' not in thresh or 'linear' in thresh:
             continue
+        thresh = float(thresh.replace(".pickle.json", ""))
         pattern = "\d\.\d{6,}"
 
-        thresh = re.search(pattern, filename).group()
+        # thresh = re.search(pattern, filename)
+        # if not thresh:
+        #     continue
+        # thresh = thresh.group()
         thresh_list.append(float(thresh))
-        
         with open(os.path.join(log_dir, filename), "r") as f:
-            print(filename)
             c = json.load(f)
 
-
             for m in metrics:
-                metrics_score[m].append(float(c["test"][0][m]))
+                metrics_score[m].append((thresh, float(c["test"][0][m])))
 
-    for m in metrics_score:
+    for m in metrics_score: 
         print(m)
-        plt.scatter(thresh_list, metrics_score[m],label=m, marker=".")
+        x,y = zip(*metrics_score[m])
+        plt.scatter(x, y,label=m, marker=".")
 
     model_dir = log_dir.rsplit('/', 1)[0]
     data_name  = model_dir.split('/')
@@ -46,7 +51,6 @@ def create_graph(log_dir, metrics):
     # plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     plt.xlabel("threshold")
     plt.ylabel("scores")
-    plt.xscale('log')
     plt.savefig(os.path.join(model_dir, "graphs", "thresh_score.png"))
     plt.close()
             

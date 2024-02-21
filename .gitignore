@@ -1,10 +1,14 @@
 /runs/
 /data/
 /example_config/
+/debug
 /experiment_results/
+test.py
+test.sh
 .github
 .git-blame-ignore-revs
-.gitmodules
+.gitmodule
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

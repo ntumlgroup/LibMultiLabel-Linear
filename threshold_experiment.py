@@ -10,6 +10,7 @@ import argparse
 import yaml
 from tqdm import tqdm
 import pdb
+import pickle
 
 
 
@@ -68,6 +69,8 @@ if __name__ == "__main__":
         args.dataset_name,
         args.linear_technique,
     )
+    
+
     preprocessor, model = load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
     model.weights = scipy.sparse.csr_matrix(model.weights)
 
@@ -87,18 +90,28 @@ if __name__ == "__main__":
             percentage = [(1 - float(a) * (float(r) ** int(k))) for k in range(int(k))]
         elif "lin":
             print("quantile_threshold: ", param)
-            percentage = [i * 0.01 for i in range(0, 100)]
+            percentage = [round(i * 0.01, 2) for i in range(0, 100)]
+            print(percentage)
         data = np.abs(model.weights.data)
+
+    if not os.path.isdir(os.path.join(result_path)):
+        os.makedirs(os.path.join(result_path))
 
     if not os.path.isdir(os.path.join(result_path, "models")):
         os.makedirs(os.path.join(result_path, "models"))
-
+        
+    if not os.path.isdir(os.path.join(result_path, "logs")):
+        os.makedirs(os.path.join(result_path, "logs"))
 
     thresh, i = np.quantile(data, percentage), 0
 
-
     for t in tqdm(thresh):
-        new_model = threshold_smart_indexing(model, float(t), linear_technique)
+        try:
+            new_model = threshold_smart_indexing(model, float(t), linear_technique)
+        except ValueError:
+            pickle.dump(scipy.sparse._compressed.args_, open('arguments2.pickle', 'wb'))
+            raise
+
         fname = dataset_name.split("/")[-1] + "--" + str(round(float(percentage[i]), 5)) + "--" + str(t) + ".pickle"
         save_pipeline_threshold_experiment(
             os.path.join(result_path, "models"),

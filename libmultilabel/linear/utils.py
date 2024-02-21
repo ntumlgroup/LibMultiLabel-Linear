@@ -28,6 +28,7 @@ LINEAR_TECHNIQUES = {
     "tree": linear.train_tree,
 }
 
+
 def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
     """Saves preprocessor and model to checkpoint_dir/linear_pipline.pickle.
 
@@ -47,6 +48,7 @@ def save_pipeline(checkpoint_dir: str, preprocessor: Preprocessor, model):
             },
             f,
         )
+
 
 def save_pipeline_threshold_experiment(checkpoint_dir: str, preprocessor: Preprocessor, model, filename: str):
     """Saves preprocessor and model to checkpoint_dir with a specific .pickle filename.
@@ -69,6 +71,7 @@ def save_pipeline_threshold_experiment(checkpoint_dir: str, preprocessor: Prepro
             f,
         )
 
+
 def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     """Loads preprocessor and model from checkpoint_path.
 
@@ -79,10 +82,17 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
         tuple[Preprocessor, Any]: A tuple of the preprocessor and model.
     """
     with open(checkpoint_path, "rb") as f:
-        pipeline = pickle.load(f)
-    return (pipeline["preprocessor"], pipeline["model"])
+        pipeline = pickle.load(f) 
+    preprocessor, model = pipeline["preprocessor"], pipeline["model"]
+    if not model.mmap is None:
+        weights_path = os.path.join(os.path.dirname(checkpoint_path), "weights.dat")
+        weights = np.matrix(np.memmap(weights_path, mode="r", **model.mmap), copy=False)
+        model.weights = weights
 
-def threshold_smart_indexing(model, threshold: float, threshold_type: str): 
+    return preprocessor, model
+
+
+def threshold_smart_indexing(model, threshold: float, threshold_type: str):
     """Threshold model weights based on a given value and model
 
     Args:
@@ -100,12 +110,14 @@ def threshold_smart_indexing(model, threshold: float, threshold_type: str):
         d.flat_model.weights.eliminate_zeros()
     elif threshold_type == "1vsrest":
         w = d.weights.copy()
-        abs_w = np.abs(w)
-        w[abs_w < threshold] = 0
+        abs_w = np.abs(w.data)
+        i = abs_w < threshold
+        w.data[i] = 0
         w.eliminate_zeros()
         d.weights = w
     d.mmap = None
     return d
+
 
 class MultiLabelEstimator(sklearn.base.BaseEstimator):
     """Customized sklearn estimator for the multi-label classifier.
@@ -144,6 +156,7 @@ class MultiLabelEstimator(sklearn.base.BaseEstimator):
         metrics.update(preds, y.toarray())
         metric_dict = metrics.compute()
         return metric_dict[self.scoring_metric]
+
 
 class GridSearchCV(sklearn.model_selection.GridSearchCV):
     """A customized `sklearn.model_selection.GridSearchCV`` class for Liblinear.

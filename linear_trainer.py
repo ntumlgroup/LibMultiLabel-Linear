@@ -10,7 +10,7 @@ from libmultilabel.linear.utils import LINEAR_TECHNIQUES
 
 
 def linear_test(config, model, datasets, label_mapping):
-    metrics = linear.get_metrics(config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=model.multiclass)
+    metrics = linear.get_metrics(config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=model.name == "binary_and_multiclass") # multiclass=model.multiclass)
     num_instance = datasets["test"]["x"].shape[0]
     k = config.save_k_predictions
     if k > 0:
@@ -69,6 +69,7 @@ def linear_run(config):
         datasets = linear.load_dataset(config.data_format, config.training_file, config.test_file)
         datasets = preprocessor.transform(datasets)
     else:
+ 
         preprocessor = linear.Preprocessor(config.include_test_labels, config.remove_no_label_data)
         datasets = linear.load_dataset(
             config.data_format,

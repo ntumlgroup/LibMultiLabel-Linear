@@ -5,7 +5,8 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
-
+import warnings
+warnings.filterwarnings("ignore", message=".*")
 from libmultilabel.common_utils import AttributeDict, timer
 from libmultilabel.logging import add_stream_handler, add_collect_handler
 
@@ -262,10 +263,10 @@ def get_config():
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
     '''
-    config_run_name = config.log_name 
+    config.run_name = config.log_name 
 
     config.checkpoint_dir = os.path.join(config.result_dir)
-    config.log_path = os.path.join(config.checkpoint_dir, config.log_name)
+    config.log_path = os.path.join(config.checkpoint_dir, config.log_name+".json")
     config.predict_out_path = config.predict_out_path or os.path.join(config.checkpoint_dir, "predictions.txt")
 
     return config

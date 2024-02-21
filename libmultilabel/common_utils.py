@@ -67,7 +67,6 @@ def dump_log(log_path, metrics=None, split=None, config=None):
             result[split].append(metrics)
         else:
             result[split] = [metrics]
-
     with open(log_path, "w") as fp:
         json.dump(result, fp)
 

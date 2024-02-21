@@ -291,6 +291,7 @@ def get_metrics(monitor_metrics: list[str], num_classes: int, multiclass: bool =
     Returns:
         MetricCollection: A metric collection of the list of metrics.
     """
+
     if monitor_metrics is None:
         monitor_metrics = []
     metrics = {}

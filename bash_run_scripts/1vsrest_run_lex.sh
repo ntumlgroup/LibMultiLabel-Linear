@@ -3,7 +3,7 @@ ROOT="/mnt/HDD-Seagate-16TB-2/justinchanchan8/tree-prunning-results/runs/1vsrest
 cd ..
 
 
-thresholdsetting="0-100-quantile"
+thresholdsetting="85-100-quantile"
 
 reg=(
     "l2svm_l2r"
@@ -12,17 +12,16 @@ reg=(
 dataset=(
     # "EUR-Lex"
     # "AmazonCat-13K"
-    # "rcv1"
+    # "rcv1" -> which rcv1?
     # "Wiki10-31K"
-    # "lexglue/ecthr_a"
-    # "lexglue/ecthr_b"
-    # "lexglue/ledgar"
-    # "lexglue/scotus"
-    # "lexglue/unfair_tos"
+    "lexglue/ecthr_a"
+    "lexglue/ecthr_b"
+    "lexglue/ledgar"
+    "lexglue/scotus"
+    "lexglue/unfair_tos"
 )
 
 thresholdoptions="geo/.15/.8/100"
-# thresholdoptions="geo/.15/.8/100
 # thresholdoptions="lin/0/100"
 
 # Training
@@ -37,15 +36,17 @@ thresholdoptions="geo/.15/.8/100"
 
 # echo "Threshold Experiment"
 # for d in "${dataset[@]}"; do
+#     # python -m pdb -- threshold_experiment.py --threshold_options "$thresholdoptions" \
 #     python threshold_experiment.py --threshold_options "$thresholdoptions" \
 #                                     --model_path "$ROOT/$d/l2svm_l2r" \
 #                                     --result_path "$ROOT/$d/$thresholdsetting" \
 #                                     --dataset_name "$d" \
 #                                     --linear_technique "1vsrest"
+#     echo "${d} | $(date +%F) | $(date)" >> "$ROOT/$d/$thresholdsetting/models/model-logs.txt"
 # done
 
 
-# echo "Prediction"
+# # echo "Prediction"
 # for d in "${dataset[@]}"; do
 #     for filename in "$ROOT/$d/$thresholdsetting/models/"*;
 #     do
@@ -53,9 +54,9 @@ thresholdoptions="geo/.15/.8/100"
 #         name="$(echo $filename | rev | cut -d '/' -f 1 | rev)"
 
 #         python main.py --linear --eval \
-#                         --data_format svm \
-#                         --training_file data/$d/train.svm \
-#                         --test_file data/$d/test.svm \
+#                         --data_format txt \
+#                         --training_file data/$d/train.txt \
+#                         --test_file data/$d/test.txt \
 #                         --liblinear_options "-s 1 -e 0.0001 -c 1" \
 #                         --linear_technique "1vsrest" \
 #                         --monitor_metrics P@1 P@3 P@5 R@3 R@5 NDCG@3 NDCG@5 \
@@ -64,17 +65,18 @@ thresholdoptions="geo/.15/.8/100"
 #                         --checkpoint_path "$filename" \
 #                         --log_name "${name}" \
 #                         --result_dir "$ROOT/$d/$thresholdsetting/logs" 
+
 #         end=$(date +%s)
-#         echo "${d}-${name} | $(($end-$start)) seconds | $(date +%F) | $(date) " >> "$ROOT/$d/$thresholdsetting/logs/test-logs.txt"
+#         echo "${d}-${name} | $(($end-$start)) seconds | $(date +%F) | $(date)" >> "$ROOT/$d/$thresholdsetting/logs/test-logs.txt"
 #     done
 # done
 
 
 
-echo "Graph"
+# echo "Graph"
 for d in "${dataset[@]}"; do
     python experiment_utils.py --log_path "$ROOT/$d/$thresholdsetting/logs" \
                             --function_name "create_graph" \
                             --metrics "P@1/P@3/P@5/R@3/R@5"
-      echo "${d} | $(date +%F) | $(date)" >> "$ROOT/$d/$thresholdsetting/graphs/graph-logs.txt"
+    echo "${d} | $(date +%F) | $(date)" >> "$ROOT/$d/$thresholdsetting/graphs/graph-logs.txt"                       
 done
