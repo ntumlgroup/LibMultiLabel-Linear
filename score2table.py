@@ -52,19 +52,29 @@ def main():
     parser.add_argument('-t', '--tasks',nargs="*", default=["EUR-Lex", "MIMIC-50", "ECtHRA"])
     parser.add_argument('-c', '--csv', action='store_true')
     parser.add_argument('-s', '--search', action='store_true')
+    parser.add_argument('-d', '--des', type=str, default="trial_best_params")
 
     args = parser.parse_args()
-    json_files = sorted(glob.glob(f"{args.root}/*/trial_best_params/logs.json")) if args.search else sorted(glob.glob(f"{args.root}/*/logs.json"))
+    json_files = sorted(glob.glob(f"{args.root}/*/{args.des}/logs.json")) if args.search else sorted(glob.glob(f"{args.root}/*/logs.json"))
     tasks = dict()
     for i in args.tasks:
         tasks[i] = [["model"]]
         tasks[i][0] += [i for i in args.metrics]
-    
     for file in json_files:
         with open(file, 'r') as r:
             log = json.load(r)
-        task = log["config"]["data_name"]
-        model_name = "_".join(log["config"]["run_name"].split("_")[1:-1])
+        if log["config"].get("custom_run_name", False):
+            # print(file)
+            task = "".join(log["config"]["result_dir"].split("_")[0])
+            task = task.replace("runs/", "")
+            model_name = "_".join(log["config"]["result_dir"].split("_")[1:-1])
+        else:
+            # breakpoint()
+            task = log["config"]["data_name"]
+            if args.des == "results":
+                model_name = "_".join(log["config"]["result_dir"].split("_")[1:-1])
+            else:
+                model_name = "_".join(log["config"]["run_name"].split("_")[1:-1])
         if "test" not in log.keys():
             print(file)
             continue
@@ -74,6 +84,7 @@ def main():
         for i in score.keys():
             if i in args.metrics:
                 row.append(round(score[i], 4))
+        # print(task)
         tasks[task].append(row)
     
     for task in tasks.keys():

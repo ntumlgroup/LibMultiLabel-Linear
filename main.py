@@ -224,6 +224,9 @@ def add_all_arguments(parser):
         "--tree_max_depth", type=int, default=10, help="Maximum depth of the tree (default: %(default)s)"
     )
     parser.add_argument(
+        "--custom_run_name", type=str, default=None
+    )
+    parser.add_argument(
         "-h",
         "--help",
         action="help",
@@ -253,8 +256,7 @@ def get_config():
     if not hasattr(args, "scheduler_config"):
         args.scheduler_config = None
     config = AttributeDict(vars(args))
-
-    config.run_name = "{}_{}_{}".format(
+    config.run_name = config.custom_run_name if config.custom_run_name else "{}_{}_{}".format(
         config.data_name,
         Path(config.config).stem if config.config else config.model_name,
         datetime.now().strftime("%Y%m%d%H%M%S"),

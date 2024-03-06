@@ -32,7 +32,7 @@ model_name: KimCNN
 loss_function: binary_cross_entropy_with_logits
 init_weight: xavier_uniform
 network_config:
-  activation: tanh
+  activation: null
   embed_dropout: ['grid_search', [0.2, 0.4, 0.6]]
   post_encoder_dropout: ['grid_search', [0.2, 0.4, 0.6]]
   filter_sizes: ['grid_search', [[2], [4], [6]]]
