@@ -1,8 +1,8 @@
 # data
-training_file: data/SCOTUS/train.txt
-val_file: data/SCOTUS/valid.txt
-test_file: data/SCOTUS/test.txt
-data_name: SCOTUS
+training_file: data/ECtHRB/train.txt
+val_file: data/ECtHRB/valid.txt
+test_file: data/ECtHRB/test.txt
+data_name: ECtHRB
 min_vocab_freq: 1
 max_seq_length: 500
 include_test_labels: true
@@ -15,10 +15,10 @@ seed: 1337
 epochs: 50
 batch_size: 16
 optimizer: adam
-learning_rate: 0.001
+learning_rate: 0.003
 weight_decay: 0
 patience: 10
-shuffle: true
+shuffle: false
 
 # eval
 eval_batch_size: 16
@@ -26,17 +26,15 @@ monitor_metrics: ['Micro-F1', 'Macro-F1', 'Another-Macro-F1', 'P@1', 'P@3', 'P@5
 val_metric: 'Micro-F1'
 
 # model
-model_name: BiLSTM_classifier
-loss_function: binary_cross_entropy_with_logits
-init_weight: kaiming_uniform
+model_name: KimCNN
+init_weight: xavier_uniform
 network_config:
   activation: null
   embed_dropout: 0.2
-  encoder_dropout: 0.2
-  rnn_dim: 512
-  rnn_layers: 1
-
-
+  post_encoder_dropout: 0.2
+  filter_sizes: [4]
+  num_filter_per_size: 500
+  
 # pretrained vocab / embeddings
 embed_file: glove.840B.300d
 normalize_embed: false
