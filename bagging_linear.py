@@ -185,9 +185,9 @@ model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rat
 
 # metrics = metrics_in_batches(model_name, 10000)
 # for amazon-3m
-metrics = metrics_in_batches_without_pred(model_name, 10000)
+#metrics = metrics_in_batches_without_pred(model_name, 10000)
 #metrics = metrics_in_batches(model_name, 1000)
-#predict_in_batches(model_name, 10000, ARGS.idx)
+predict_in_batches(model_name, 10000, ARGS.idx)
 
 print("mean in subsampled labels:", metrics)
 
