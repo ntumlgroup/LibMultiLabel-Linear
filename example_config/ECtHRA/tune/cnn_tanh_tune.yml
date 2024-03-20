@@ -48,7 +48,12 @@ vocab_file: null
 search_alg: basic_variant
 embed_cache_dir: .vector_cache
 num_samples: 1
-scheduler: null
+scheduler:
+  time_attr: training_iteration
+  max_t: 50 # the maximum epochs to run for each config (parameter R in the ASHA paper)
+  grace_period: 10 # the minimum epochs to run for each config (parameter r in the ASHA paper)
+  reduction_factor: 3 # reduce the number of configuration to floor(1/reduction_factor) each round of successive halving (called rung in ASHA paper)
+  brackets: 1 # number of brackets. A smaller bracket index (parameter s in the ASHA paper) means earlier stopping (i.e., less total resources used)
 checkpoint_path: null
 cpu: false
 data_workers: 4
