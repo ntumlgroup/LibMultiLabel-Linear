@@ -69,7 +69,7 @@ if ARGS.idx >= 0:
         #tmp, indices = linear.train_1vsrest_subsample(
         #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
         with open(submodel_name, "wb") as F:
-            pickle.dump((tmp, indices), F)
+            pickle.dump((tmp, indices), F, protocol=5)
 
     # predict_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx)
     # if not os.path.isfile(predict_name):
@@ -97,7 +97,7 @@ else:
             # tmp, indices = linear.train_1vsrest_subsample(
             #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
             with open(submodel_name, "wb") as F:
-                pickle.dump((tmp, indices), F)
+                pickle.dump((tmp, indices), F, protocol=5)
         print("training one model cost:", time.time()-model_start, flush=True)
 
 print("training all models cost:", time.time()-start, flush=True)
