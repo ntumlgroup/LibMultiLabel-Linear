@@ -41,9 +41,10 @@ def main():
         template = yaml.load(fp, Loader=yaml.SafeLoader)
 
     from torch_trainer import TorchTrainer
+    from libmultilabel.common_utils import AttributeDict
     import copy
     left_combination = copy.deepcopy(combs)
-    template["network"] = combs[2]
+    template["network_config"] = combs[2]
     template["seed"] = args.seed
     template["model_name"] = config["model_name"]
     for comb in combs[1]:
@@ -52,11 +53,16 @@ def main():
             if combs[0][i] == "learning_rate":
                 template[combs[0][i]] = comb[i]
             else:
-                template["network"][combs[0][i]] = comb[i]
+                template["network_config"][combs[0][i]] = comb[i]
             name.append(combs[0][i])
             name.append(str(comb[i]))
         template["result_dir"] = f"./runs/{args.exps}"
         template["run_name"] = ("_").join(name)
+        template = AttributeDict(template)
+        template.checkpoint_dir = os.path.join(template.result_dir, template.run_name)
+        template.log_path = os.path.join(template.checkpoint_dir, "logs.json")
+        template.predict_out_path = os.path.join(template.checkpoint_dir, "predictions.txt")
+        print(template)
         trainer = TorchTrainer(config=template, save_checkpoints=not args.no_checkpoint)
         trainer.train()
         trainer.test()
