@@ -97,13 +97,12 @@ def main():
     else:
         results = []
         for task in tasks.keys():
+            print(task)
             results.append(make_csv_table(tasks[task]))
         for rows in zip(*[i.iterrows() for i in results]):
             row_pair = []
             for i in rows:
                 row_pair.append((" \pm ").join([str(i[1][j]) for j in range(1, len(i[1]))]))
-            print((" & ").join(row_pair))
+            print("& " + (" & ").join(row_pair))
 if __name__ == "__main__":
     main()
-
-    
