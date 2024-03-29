@@ -102,7 +102,7 @@ def main():
             row_pair = []
             for i in rows:
                 row_pair.append((" \pm ").join([str(i[1][j]) for j in range(1, len(i[1]))]))
-            print((" & ").join(row_pair))
+            print("& " + (" & ").join(row_pair))
 if __name__ == "__main__":
     main()
 
