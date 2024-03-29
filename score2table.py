@@ -85,6 +85,8 @@ def main():
             if i in args.metrics:
                 row.append(round(score[i], 4))
         # print(task)
+        if task not in args.task:
+            continue
         tasks[task].append(row)
     
     if not args.paper:
