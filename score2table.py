@@ -38,12 +38,11 @@ def make_markdown_table(array):
     return markdown + "\n"
 
 def make_csv_table(array):
-    df = pd.DataFrame(array)
-    new_header = df.iloc[0]
-    df = df[1:]
-    df.columns = new_header
-    df = df.groupby('model').mean().reset_index()
-    return df.to_csv(index=False, header=True)
+    df = pd.DataFrame(array[1:], columns=array[0])
+    df_mean = df.groupby('model').mean().mul(100).round(2).reset_index()
+    df_std = df.groupby('model').std().mul(100).round(2).reset_index()
+    df = df_mean.merge(df_std, on="model", suffixes=["_avg", "_std"])
+    return df
 
 def main():
     parser = argparse.ArgumentParser()
@@ -52,6 +51,7 @@ def main():
     parser.add_argument('-t', '--tasks',nargs="*", default=["EUR-Lex", "MIMIC-50", "ECtHRA"])
     parser.add_argument('-c', '--csv', action='store_true')
     parser.add_argument('-s', '--search', action='store_true')
+    parser.add_argument('-p', '--paper', action='store_true')
     parser.add_argument('-d', '--des', type=str, default="trial_best_params")
 
     args = parser.parse_args()
@@ -87,13 +87,22 @@ def main():
         # print(task)
         tasks[task].append(row)
     
-    for task in tasks.keys():
-        print(f"{task}:")
-        if args.csv:
-            print(make_csv_table(tasks[task]))
-        else:
-            print(make_markdown_table(tasks[task]))    
-
+    if not args.paper:
+        for task in tasks.keys():
+            print(f"{task}:")
+            if args.csv:
+                print(make_csv_table(tasks[task]).to_csv(index=False, header=True))
+            else:
+                print(make_markdown_table(tasks[task]))    
+    else:
+        results = []
+        for task in tasks.keys():
+            results.append(make_csv_table(tasks[task]))
+        for rows in zip(*[i.iterrows() for i in results]):
+            row_pair = []
+            for i in rows:
+                row_pair.append((" \pm ").join([str(i[1][j]) for j in range(1, len(i[1]))]))
+            print((" & ").join(row_pair))
 if __name__ == "__main__":
     main()
 
