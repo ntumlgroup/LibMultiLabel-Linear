@@ -1,0 +1,70 @@
+# data
+training_file: data/emoji/train.txt
+val_file: data/emoji/valid.txt
+test_file: data/emoji/test.txt
+data_name: emoji
+min_vocab_freq: 1
+max_seq_length: 500
+include_test_labels: true
+# Follow https://github.com/jamesmullenbach/caml-mimic/blob/master/datasets.py#L45
+# to remove training and validation instances that have no labels.
+remove_no_label_data: false
+add_special_tokens: false
+# train
+seed: 1337
+epochs: 100
+batch_size: 16
+optimizer: adam
+learning_rate: ['grid_search', [0.003, 0.001, 0.0003]]
+weight_decay: 0
+patience: 10
+shuffle: true
+
+# eval
+eval_batch_size: 16
+monitor_metrics: ['Another-Macro-F1', 'Macro-F1', 'Micro-F1', 'P@1', 'P@5', 'RP@5', 'nDCG@5']
+early_stopping_metric: Micro-F1 
+val_metric: Micro-F1
+
+# model
+model_name: KimCNN
+loss_function: binary_cross_entropy_with_logits
+init_weight: xavier_uniform
+network_config:
+  activation: null
+  embed_dropout: ['grid_search', [0.2, 0.4, 0.6]]
+  post_encoder_dropout: ['grid_search', [0.2, 0.4, 0.6]]
+  filter_sizes: ['grid_search', [[2], [4], [6]]]
+  num_filter_per_size: ['grid_search', [50, 250, 450]]
+
+# pretrained vocab / embeddings
+embed_file: glove.840B.300d
+normalize_embed: false
+vocab_file: null
+
+# hyperparamter search
+search_alg: basic_variant
+embed_cache_dir: .vector_cache
+num_samples: 1
+scheduler:
+  time_attr: training_iteration
+  max_t: 100 # the maximum epochs to run for each config (parameter R in the ASHA paper)
+  grace_period: 10 # the minimum epochs to run for each config (parameter r in the ASHA paper)
+  reduction_factor: 3 # reduce the number of configuration to floor(1/reduction_factor) each round of successive halving (called rung in ASHA paper)
+  brackets: 1 # number of brackets. A smaller bracket index (parameter s in the ASHA paper) means earlier stopping (i.e., less total resources used)
+checkpoint_path: null
+cpu: false
+data_workers: 4
+eval: false
+label_file: null
+limit_train_batches: 1.0
+limit_val_batches: 1.0
+limit_test_batches: 1.0
+metric_threshold: 0.5
+result_dir: runs
+save_k_predictions: 0
+silent: true
+val_size: 0.2
+lr_scheduler: null
+scheduler_config: null
+momentum: 0

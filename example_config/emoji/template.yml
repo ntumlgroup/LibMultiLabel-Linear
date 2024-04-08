@@ -1,0 +1,35 @@
+# data
+training_file: data/emoji/train.txt
+val_file: data/emoji/valid.txt
+test_file: data/emoji/test.txt
+data_name: emoji
+min_vocab_freq: 1
+max_seq_length: 500
+include_test_labels: true
+remove_no_label_data: false
+add_special_tokens: false
+
+# train
+seed: 1337
+epochs: 50
+batch_size: 16
+optimizer: adam
+weight_decay: 0
+patience: 10
+shuffle: true
+
+
+# eval
+eval_batch_size: 16
+monitor_metrics: ['Another-Macro-F1', 'Macro-F1', 'Micro-F1', 'P@1', 'P@3', 'P@5', 'nDCG@5']
+early_stopping_metric: Micro-F1
+val_metric: Micro-F1
+
+# model
+loss_function: binary_cross_entropy_with_logits
+init_weight: kaiming_uniform
+
+# pretrained vocab / embeddings
+embed_file: glove.840B.300d
+normalize_embed: false
+vocab_file: null
