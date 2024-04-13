@@ -51,25 +51,32 @@ while len(seed_pool) != num_models:
     if seed not in seed_pool:
         seed_pool += [seed]
 
-model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+#model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+#        seed = ARGS.seed,
+#        K = ARGS.K,
+#        sample_rate = ARGS.sample_rate,
+#        data = os.path.basename(ARGS.datapath)
+#        )
+model_name = "OVR_{data}_seed={seed}_machine-idx={idx}.model".format(
         seed = ARGS.seed,
-        K = ARGS.K,
-        sample_rate = ARGS.sample_rate,
-        data = os.path.basename(ARGS.datapath)
+        data = os.path.basename(ARGS.datapath),
+        idx = ARGS.idx
         )
 
 if ARGS.idx >= 0:
-    model_idx = ARGS.idx
-    np.random.seed(seed_pool[model_idx])
+    #model_idx = ARGS.idx
+    #np.random.seed(seed_pool[model_idx])
 
-    submodel_name = "./models/" + model_name + "-{}".format(model_idx)
-    if not os.path.isfile(submodel_name):
-        tmp, indices = linear.train_tree_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-        #tmp, indices = linear.train_1vsrest_subsample(
-        #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
-        with open(submodel_name, "wb") as F:
-            pickle.dump((tmp, indices), F, protocol=5)
+    model_start = time.time()
+    #submodel_name = "./models/" + model_name + "-{}".format(model_idx)
+    #if not os.path.isfile(submodel_name):
+    #tmp, indices = linear.train_tree_subsample(
+    #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+    #print("training one model cost:", time.time()-model_start, flush=True)
+    tmp, indices = linear.train_1vsrest_distributed(
+            datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", machine_idx=ARGS.idx)
+    with open(submodel_name, "wb") as F:
+        pickle.dump((tmp, indices), F, protocol=5)
 
     # predict_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx)
     # if not os.path.isfile(predict_name):
@@ -86,18 +93,18 @@ if ARGS.idx >= 0:
 
 else:
     for model_idx in range(num_models):
-        model_start = time.time()
         submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     
         np.random.seed(seed_pool[model_idx])
     
-        if not os.path.isfile(submodel_name):
-            tmp, indices = linear.train_tree_subsample(
-                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        model_start = time.time()
+        #if not os.path.isfile(submodel_name):
+        tmp, indices = linear.train_tree_subsample(
+                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
             # tmp, indices = linear.train_1vsrest_subsample(
             #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
-            with open(submodel_name, "wb") as F:
-                pickle.dump((tmp, indices), F, protocol=5)
+            #with open(submodel_name, "wb") as F:
+            #    pickle.dump((tmp, indices), F, protocol=5)
         print("training one model cost:", time.time()-model_start, flush=True)
 
 print("training all models cost:", time.time()-start, flush=True)
