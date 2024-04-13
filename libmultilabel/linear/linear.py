@@ -11,6 +11,7 @@ from tqdm import tqdm
 __all__ = [
     "train_1vsrest",
     "train_1vsrest_subsample",
+    "train_1vsrest_distributed",
     "train_thresholding",
     "train_cost_sensitive",
     "train_cost_sensitive_micro",
