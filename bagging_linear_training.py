@@ -73,6 +73,7 @@ if ARGS.idx >= 0:
     #tmp, indices = linear.train_tree_subsample(
     #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
     #print("training one model cost:", time.time()-model_start, flush=True)
+    submodel_name = "./models/" + model_name
     tmp, indices = linear.train_1vsrest_distributed(
             datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", machine_idx=ARGS.idx)
     with open(submodel_name, "wb") as F:
