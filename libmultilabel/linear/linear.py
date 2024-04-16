@@ -131,7 +131,7 @@ def train_1vsrest_subsample(y: sparse.csr_matrix, x: sparse.csr_matrix, options:
     return FlatModel(name="1vsrest", weights=np.asmatrix(weights), bias=bias, thresholds=0), indices
 
 def train_1vsrest_distributed(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str = "", machine_idx=0, verbose: bool = True) -> TreeModel:
-    num_label_each_machine = 95331
+    num_label_each_machine = 31777
     indices = list(range(machine_idx * num_label_each_machine, min( (machine_idx+1) * num_label_each_machine, 667317 ) ))
 
     y = y[:,indices]
