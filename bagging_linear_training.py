@@ -71,7 +71,7 @@ if ARGS.idx >= 0:
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     if not os.path.isfile(submodel_name):
         tmp, indices = linear.train_tree_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
         print("training one model cost:", time.time()-model_start, flush=True)
     # submodel_name = "./models/" + model_name
     # tmp, indices = linear.train_1vsrest_distributed(
