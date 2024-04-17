@@ -140,6 +140,7 @@ def train_tree_subsample(
     def subsample_indices(y, sample_rate):
         total_labels = np.sum(y) 
         label_dist = np.sum(y, axis=0)/total_labels
+        label_dist = np.squeeze( np.asarray(label_dist) )
         indices = np.random.choice(y.shape[1], int(y.shape[1]*sample_rate), replace=False, p=label_dist )
         indices = np.sort(indices)
         return indices
