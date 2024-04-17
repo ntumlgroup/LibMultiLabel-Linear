@@ -131,14 +131,21 @@ def train_tree_subsample(
     Returns:
         A model which can be used in predict_values.
     """
-    def subsample_indices(num_label: int, sample_rate: float) -> list:
-        indices = []
-        for idx in range(num_label):
-            if np.random.uniform(low=0.0, high=1.0) < sample_rate:
-                indices += [idx]
+    # def subsample_indices(num_label: int, sample_rate: float) -> list:
+    #     indices = []
+    #     for idx in range(num_label):
+    #         if np.random.uniform(low=0.0, high=1.0) < sample_rate:
+    #             indices += [idx]
+    #     return indices
+    def subsample_indices(y, sample_rate):
+        total_labels = np.sum(y) 
+        label_dist = np.sum(y, axis=0)/total_labels
+        indices = np.random.choice(y.shape[1], int(y.shape[1]*sample_rate), replace=False, p=label_dist )
+        indices = np.sort(indices)
         return indices
 
-    indices = subsample_indices(y.shape[1], sample_rate)
+    #indices = subsample_indices(y.shape[1], sample_rate)
+    indices = subsample_indices(y, sample_rate)
     y = y[:,indices]
 
     label_representation = (y.T * x).tocsr()
