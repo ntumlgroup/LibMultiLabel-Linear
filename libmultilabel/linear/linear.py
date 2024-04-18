@@ -135,8 +135,6 @@ def train_1vsrest_distributed(y: sparse.csr_matrix, x: sparse.csr_matrix, option
     indices = list(range(machine_idx * num_label_each_machine, min( (machine_idx+1) * num_label_each_machine, 667317 ) ))
 
     y = y[:,indices]
-    relevant_instances = y.getnnz(axis=1) > 0
-    y, x = y[relevant_instances], x[relevant_instances]
 
     x, options, bias = _prepare_options(x, options)
 
