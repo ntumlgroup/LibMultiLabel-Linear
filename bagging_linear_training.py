@@ -64,8 +64,8 @@ model_name = "OVR_{data}_seed={seed}_machine-idx={idx}.model".format(
         )
 
 if ARGS.idx >= 0:
-    model_idx = ARGS.idx
-    np.random.seed(seed_pool[model_idx])
+    # model_idx = ARGS.idx
+    # np.random.seed(seed_pool[model_idx])
 
     model_start = time.time()
     # submodel_name = "./models/" + model_name + "-{}".format(model_idx)
