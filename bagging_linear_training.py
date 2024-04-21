@@ -51,31 +51,31 @@ while len(seed_pool) != num_models:
     if seed not in seed_pool:
         seed_pool += [seed]
 
-# model_name = "Rand-label-Forest-LD_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
-#         seed = ARGS.seed,
-#         K = ARGS.K,
-#         sample_rate = ARGS.sample_rate,
-#         data = os.path.basename(ARGS.datapath)
-#         )
-model_name = "OVR_{data}_seed={seed}_machine-idx={idx}.model".format(
+model_name = "Rand-label-Forest-LD_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
         seed = ARGS.seed,
-        data = os.path.basename(ARGS.datapath),
-        idx = ARGS.idx
+        K = ARGS.K,
+        sample_rate = ARGS.sample_rate,
+        data = os.path.basename(ARGS.datapath)
         )
+# model_name = "OVR_{data}_seed={seed}_machine-idx={idx}.model".format(
+#         seed = ARGS.seed,
+#         data = os.path.basename(ARGS.datapath),
+#         idx = ARGS.idx
+#         )
 
 if ARGS.idx >= 0:
-    # model_idx = ARGS.idx
-    # np.random.seed(seed_pool[model_idx])
+    model_idx = ARGS.idx
+    np.random.seed(seed_pool[model_idx])
 
     model_start = time.time()
-    # submodel_name = "./models/" + model_name + "-{}".format(model_idx)
-    # if not os.path.isfile(submodel_name):
-    #     tmp, indices = linear.train_tree_subsample(
-    #             datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-    #     print("training one model cost:", time.time()-model_start, flush=True)
-    submodel_name = "./models/" + model_name
-    tmp, indices = linear.train_1vsrest_distributed(
-            datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", machine_idx=ARGS.idx)
+    submodel_name = "./models/" + model_name + "-{}".format(model_idx)
+    if not os.path.isfile(submodel_name):
+        tmp, indices = linear.train_tree_subsample(
+                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        print("training one model cost:", time.time()-model_start, flush=True)
+    # submodel_name = "./models/" + model_name
+    # tmp, indices = linear.train_1vsrest_distributed(
+    #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", machine_idx=ARGS.idx)
     with open(submodel_name, "wb") as F:
         pickle.dump((tmp, indices), F, protocol=5)
 
