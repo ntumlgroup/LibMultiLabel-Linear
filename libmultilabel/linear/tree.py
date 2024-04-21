@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import logging
+import pathlib
+import pickle
 from typing import Callable
 
 import numpy as np
@@ -128,9 +132,7 @@ def train_tree(
     Returns:
         A model which can be used in predict_values.
     """
-    label_representation = (y.T * x).tocsr()
-    label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
-    root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    root = _tree_cache("tree_cache", y, x, K, dmax)
 
     num_nodes = 0
 
@@ -152,6 +154,49 @@ def train_tree(
 
     flat_model, weight_map = _flatten_model(root)
     return TreeModel(root, flat_model, weight_map)
+
+
+def _tree_cache(
+    cache_root: str,
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    K,
+    dmax,
+) -> Node:
+    front = np.s_[:100]
+    back = np.s_[100:]
+    fingerprint = (
+        y.data[front],
+        y.indices[front],
+        y.data[back],
+        y.indices[back],
+        y.shape,
+        x.data[front],
+        x.indices[front],
+        x.data[back],
+        x.indices[back],
+        x.shape,
+        K,
+        dmax,
+        np.random.get_state(),  # used in clustering initializations
+        "spherical",  # future-proof clustering method
+    )
+    h = hashlib.sha256()
+    h.update(str(fingerprint).encode())
+    digest = h.hexdigest()
+    path = pathlib.Path(f"{cache_root}/{digest}.pickle")
+    if path.exists():
+        logging.log(f"using tree cache {path}")
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    else:
+        logging.log(f"creating tree cache {path}")
+        label_representation = (y.T * x).tocsr()
+        label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
+        root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+        with open(path, "wb") as f:
+            pickle.dump(root, f)
+        return root
 
 
 def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, d: int, K: int, dmax: int) -> Node:
