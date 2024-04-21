@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 import warnings
+
 warnings.filterwarnings("ignore", message=".*")
 from libmultilabel.common_utils import AttributeDict, timer
 from libmultilabel.logging import add_stream_handler, add_collect_handler
@@ -241,7 +242,7 @@ def add_all_arguments(parser):
         "See example configs in example_config",
     )
 
-    parser.add_argument("--log_name", type=str, default='log.json')
+    parser.add_argument("--log_name", type=str, default="log.json")
 
 
 def get_config():
@@ -265,17 +266,17 @@ def get_config():
     if not hasattr(args, "scheduler_config"):
         args.scheduler_config = None
     config = AttributeDict(vars(args))
-    '''
+    """
     config.run_name = "{}_{}_{}".format(
         config.data_name,
         Path(config.config).stem if config.config else config.model_name,
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
-    '''
-    config.run_name = config.log_name 
+    """
+    config.run_name = config.log_name
 
     config.checkpoint_dir = os.path.join(config.result_dir)
-    config.log_path = os.path.join(config.checkpoint_dir, config.log_name+".json")
+    config.log_path = os.path.join(config.checkpoint_dir, config.log_name + ".json")
     config.predict_out_path = config.predict_out_path or os.path.join(config.checkpoint_dir, "predictions.txt")
 
     return config
