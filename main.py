@@ -210,7 +210,15 @@ def add_all_arguments(parser):
         "--linear_technique",
         type=str,
         default="1vsrest",
-        choices=["1vsrest", "thresholding", "cost_sensitive", "cost_sensitive_micro", "binary_and_multiclass", "tree"],
+        choices=[
+            "1vsrest",
+            "thresholding",
+            "cost_sensitive",
+            "cost_sensitive_micro",
+            "binary_and_multiclass",
+            "tree",
+            "tree_approx_pruning",
+        ],
         help="Technique for linear classification (default: %(default)s)",
     )
     parser.add_argument(
@@ -224,6 +232,7 @@ def add_all_arguments(parser):
     parser.add_argument(
         "--tree_max_depth", type=int, default=10, help="Maximum depth of the tree (default: %(default)s)"
     )
+    parser.add_argument("--tree_t", type=float, help="Approximate weight pruning parameter")
     parser.add_argument(
         "-h",
         "--help",

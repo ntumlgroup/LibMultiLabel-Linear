@@ -199,6 +199,61 @@ def _tree_cache(
         return root
 
 
+def train_tree_approx_pruning(
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    t: float,
+    options: str = "",
+    K=100,
+    dmax=10,
+    verbose: bool = True,
+) -> TreeModel:
+    """Trains a linear model for multiabel data using a divide-and-conquer strategy.
+    The algorithm used is based on https://github.com/xmc-aalto/bonsai.
+    Weight pruning is done according to an approximate upper bound.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        t (float): A proportional constant for weight pruning threshold.
+        options (str): The option string passed to liblinear.
+        K (int, optional): Maximum degree of nodes in the tree. Defaults to 100.
+        dmax (int, optional): Maximum depth of the tree. Defaults to 10.
+        verbose (bool, optional): Output extra progress information. Defaults to True.
+
+    Returns:
+        A model which can be used in predict_values.
+    """
+    root = _tree_cache("tree_cache", y, x, K, dmax)
+
+    num_nodes = 0
+
+    def count(node):
+        nonlocal num_nodes
+        num_nodes += 1
+
+    root.dfs(count)
+
+    pbar = tqdm(total=num_nodes, disable=not verbose)
+
+    def visit(node):
+        relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        _train_node_approx_pruning(
+            y[relevant_instances],
+            x[relevant_instances],
+            t,
+            options,
+            node,
+        )
+        pbar.update()
+
+    root.dfs(visit)
+    pbar.close()
+
+    flat_model, weight_map = _flatten_model(root)
+    return TreeModel(root, flat_model, weight_map)
+
+
 def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, d: int, K: int, dmax: int) -> Node:
     """Builds the tree recursively by kmeans clustering.
 
@@ -257,6 +312,41 @@ def _train_node(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: 
         meta_y = [y[:, child.label_map].getnnz(axis=1)[:, np.newaxis] > 0 for child in node.children]
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, False, options, False)
+
+    node.model.weights = sparse.csc_matrix(node.model.weights)
+
+
+def _train_node_approx_pruning(
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    t: float,
+    options: str,
+    node: Node,
+):
+    """If node is internal, computes the metalabels representing each child and trains
+    on the metalabels. Otherwise, train on y.
+    After training, weight pruning is done according to an approximate upper bound.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        options (str): The option string passed to liblinear.
+        node (Node): Node to be trained.
+    """
+    if node.isLeaf():
+        node.model = linear.train_1vsrest(y[:, node.label_map], x, False, options, False)
+    else:
+        # meta_y[i, j] is 1 if the ith instance is relevant to the jth child.
+        # getnnz returns an ndarray of shape number of instances.
+        # This must be reshaped into number of instances * 1 to be interpreted as a column.
+        meta_y = [y[:, child.label_map].getnnz(axis=1)[:, np.newaxis] > 0 for child in node.children]
+        meta_y = sparse.csr_matrix(np.hstack(meta_y))
+        node.model = linear.train_1vsrest(meta_y, x, False, options, False)
+
+    D = linear.predict_values(node.model, x).min(axis=0) - 2
+    threshold = t / np.abs(D) / np.sqrt(x.shape[1])
+    pruned = np.abs(node.model.weights) < threshold
+    node.model.weights[pruned] = 0
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
 

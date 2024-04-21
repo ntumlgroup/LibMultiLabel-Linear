@@ -50,6 +50,18 @@ def linear_train(datasets, config):
             config.tree_degree,
             config.tree_max_depth,
         )
+    elif config.linear_technique == "tree_approx_pruning":
+        if config.tree_t is None:
+            raise ValueError("tree_t unset")
+        
+        model = LINEAR_TECHNIQUES[config.linear_technique](
+            datasets["train"]["y"],
+            datasets["train"]["x"],
+            config.tree_t,
+            config.liblinear_options,
+            config.tree_degree,
+            config.tree_max_depth,
+        )
     else:
         model = LINEAR_TECHNIQUES[config.linear_technique](
             datasets["train"]["y"],
