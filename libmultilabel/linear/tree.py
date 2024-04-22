@@ -344,13 +344,15 @@ def _train_node_approx_pruning(
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, False, options, False)
 
-    D = linear.predict_values(node.model, x).min(axis=0) - 2
-    threshold = t / np.abs(D) / np.sqrt(x.shape[1])
-    pruned = np.abs(node.model.weights) < threshold
-    node.model.weights[pruned] = 0
+    if x.shape[0] > 0:
+        # edge case with clustering
+        D = linear.predict_values(node.model, x).min(axis=0) - 2
+        threshold = t / np.abs(D) / np.sqrt(x.shape[1])
+        pruned = np.abs(node.model.weights) < threshold
+        node.model.weights[pruned] = 0
+        node.threshold_denom = np.abs(D) * np.sqrt(x.shape[1])
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
-    node.threshold_denom = 1 / np.abs(D) / np.sqrt(x.shape[1])
 
 
 def _flatten_model(root: Node) -> tuple[linear.FlatModel, np.ndarray]:
