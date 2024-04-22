@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from . import linear
 
-__all__ = ["train_tree"]
+__all__ = ["train_tree", "train_tree_approx_pruning"]
 
 
 class Node:
@@ -183,17 +183,18 @@ def _tree_cache(
     )
     h = hashlib.sha256()
     h.update(str(fingerprint).encode())
-    digest = h.hexdigest()
+    digest = h.hexdigest()[:32]
     path = pathlib.Path(f"{cache_root}/{digest}.pickle")
     if path.exists():
-        logging.log(f"using tree cache {path}")
+        logging.info(f"using tree cache {path}")
         with open(path, "rb") as f:
             return pickle.load(f)
     else:
-        logging.log(f"creating tree cache {path}")
+        logging.info(f"creating tree cache {path}")
         label_representation = (y.T * x).tocsr()
         label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
         root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
             pickle.dump(root, f)
         return root
@@ -349,6 +350,7 @@ def _train_node_approx_pruning(
     node.model.weights[pruned] = 0
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
+    node.threshold_denom = 1 / np.abs(D) / np.sqrt(x.shape[1])
 
 
 def _flatten_model(root: Node) -> tuple[linear.FlatModel, np.ndarray]:
