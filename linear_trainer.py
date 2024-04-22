@@ -10,7 +10,8 @@ from libmultilabel.linear.utils import LINEAR_TECHNIQUES
 
 
 def linear_test(config, model, datasets, label_mapping):
-    metrics = linear.get_metrics(config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=model.name == "binary_and_multiclass") # multiclass=model.multiclass)
+    multiclass = getattr(model, "multiclass", False) or model.name == "binary_and_multiclass"
+    metrics = linear.get_metrics(config.monitor_metrics, datasets["test"]["y"].shape[1], multiclass=multiclass)
     num_instance = datasets["test"]["x"].shape[0]
     k = config.save_k_predictions
     if k > 0:
@@ -53,7 +54,7 @@ def linear_train(datasets, config):
     elif config.linear_technique == "tree_approx_pruning":
         if config.tree_t is None:
             raise ValueError("tree_t unset")
-        
+
         model = LINEAR_TECHNIQUES[config.linear_technique](
             datasets["train"]["y"],
             datasets["train"]["x"],
@@ -81,7 +82,7 @@ def linear_run(config):
         datasets = linear.load_dataset(config.data_format, config.training_file, config.test_file)
         datasets = preprocessor.transform(datasets)
     else:
- 
+
         preprocessor = linear.Preprocessor(config.include_test_labels, config.remove_no_label_data)
         datasets = linear.load_dataset(
             config.data_format,
@@ -92,6 +93,7 @@ def linear_run(config):
         datasets = preprocessor.fit_transform(datasets)
         model = linear_train(datasets, config)
         linear.save_pipeline(config.checkpoint_dir, preprocessor, model)
+        dump_log(config=config, log_path=config.log_path)
 
     if config.test_file is not None:
         assert not (
