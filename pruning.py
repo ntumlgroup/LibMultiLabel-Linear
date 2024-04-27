@@ -14,14 +14,14 @@ import typing
 def approx(
     model,
     ts: list[float],
-    evaluate: typing.Callable[[float, sparse.csr_matrix | sparse.csc_matrix], npt.NDArray],
-    evaluate_shape: tuple,
+    callback: typing.Callable[[float, sparse.csr_matrix | sparse.csc_matrix], npt.NDArray],
+    callback_return_shape: tuple | int,
 ):
     argsort_ts = np.argsort(ts)
-    if isinstance(evaluate_shape, int):
-        evaluate_shape = (evaluate_shape,)
-    if evaluate_shape[0] != 0:
-        result = np.zeros((ts.size, *evaluate_shape))
+    if isinstance(callback_return_shape, int):
+        callback_return_shape = (callback_return_shape,)
+    if callback_return_shape[0] != 0:
+        result = np.zeros((ts.size, *callback_return_shape))
 
     threshold_denom = np.zeros(model.flat_model.weights.shape[1])
 
@@ -52,12 +52,12 @@ def approx(
         absdata = absdata[kept]
 
         pruned_weights = matrix((data, indices, indptr), shape=shape)
-        if evaluate_shape[0] != 0:
-            result[argsort_ts[i]] = evaluate(t, pruned_weights)
+        if callback_return_shape[0] != 0:
+            result[argsort_ts[i]] = callback(t, pruned_weights)
         else:
-            evaluate(t, pruned_weights)
+            callback(t, pruned_weights)
 
-    if evaluate_shape[0] != 0:
+    if callback_return_shape[0] != 0:
         return result
 
 
@@ -78,6 +78,7 @@ def approx_evaluate(
     metrics: list[str],
     ts: list[float],
     eval_batch_size: int = 256,
+    callback: typing.Callable[[float, sparse.csr_matrix | sparse.csc_matrix], typing.Any] = None,
 ) -> dict[str, dict[str, float]]:
     num_instance = x.shape[0]
     results = {}
@@ -90,6 +91,9 @@ def approx_evaluate(
                 preds = linear.predict_values(model, x[slice])
                 target = y[slice].toarray()
                 metric_collection.update(preds, target)
+            if callback is not None:
+                callback(t, pruned_weights)
+
         results[t] = metric_collection.compute()
 
     approx(model, ts, evaluate, 0)
