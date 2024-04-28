@@ -346,11 +346,12 @@ def _train_node_approx_pruning(
 
     if x.shape[0] > 0:
         # edge case with clustering
-        D = linear.predict_values(node.model, x).min(axis=0) - 2
-        threshold = t / np.abs(D) / np.sqrt(x.shape[1])
-        pruned = np.abs(node.model.weights) < threshold
-        node.model.weights[pruned] = 0
-        node.threshold_denom = np.abs(D) * np.sqrt(x.shape[1])
+        quantiles = np.hstack([np.linspace(0, 0.05, 20), np.linspace(0.975, 1, 10)])
+        node.wTx_quantiles = np.quantile(linear.predict_values(node.model, x), quantiles, axis=0)
+        node.threshold_denom = np.abs(node.wTx_quantiles[0] - 2) * np.sqrt(x.shape[1])
+        # threshold = t / node.threshold_denom
+        # pruned = np.abs(node.model.weights) < threshold
+        # node.model.weights[pruned] = 0
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
 
