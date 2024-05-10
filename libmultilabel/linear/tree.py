@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from . import linear
 
-__all__ = ["train_tree", "train_tree_approx_pruning"]
+__all__ = ["train_tree", "train_tree_approx_pruning", "train_tree_thresh"]
 
 
 class Node:
@@ -147,6 +147,51 @@ def train_tree(
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
         _train_node(y[relevant_instances], x[relevant_instances], options, node)
+        pbar.update()
+
+    root.dfs(visit)
+    pbar.close()
+
+    flat_model, weight_map = _flatten_model(root)
+    return TreeModel(root, flat_model, weight_map)
+
+def train_tree_thresh(
+    y: sparse.csr_matrix,
+    x: sparse.csr_matrix,
+    root: Node,
+    quantile: float,
+    verbose: bool = True,
+    options: str = "",
+) -> TreeModel:
+    """Trains a linear model for multiabel data using a divide-and-conquer strategy.
+    The algorithm used is based on https://github.com/xmc-aalto/bonsai.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        options (str): The option string passed to liblinear.
+        K (int, optional): Maximum degree of nodes in the tree. Defaults to 100.
+        dmax (int, optional): Maximum depth of the tree. Defaults to 10.
+        verbose (bool, optional): Output extra progress information. Defaults to True.
+
+    Returns:
+        A model which can be used in predict_values.
+    """
+    num_nodes = 0
+
+    def count(node):
+        nonlocal num_nodes
+        num_nodes += 1
+
+    root.dfs(count)
+
+    pbar = tqdm(total=num_nodes, disable=not verbose)
+    import time
+    def visit(node):
+        relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        start_time = time.time()
+        _train_node_threshold(y[relevant_instances], x[relevant_instances], options, node, quantile)
+        print("Node Train Time: ", (time.time() - start_time))
         pbar.update()
 
     root.dfs(visit)
@@ -315,6 +360,43 @@ def _train_node(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: 
         node.model = linear.train_1vsrest(meta_y, x, False, options, False)
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
+
+def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: Node, quantile: float):
+    """If node is internal, computes the metalabels representing each child and trains
+    on the metalabels. Otherwise, train on y.
+
+    Args:
+        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
+        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
+        options (str): The option string passed to liblinear.
+        node (Node): Node to be trained.
+        threshold (float): threshold value to prune node weights
+    """
+    from libmultilabel.linear.utils import threshold_smart_indexing
+
+    if node.isLeaf():
+        node.model = linear.train_1vsrest(y[:, node.label_map], x, False, options, False)
+    else:
+        # meta_y[i, j] is 1 if the ith instance is relevant to the jth child.
+        # getnnz returns an ndarray of shape number of instances.
+        # This must be reshaped into number of instances * 1 to be interpreted as a column.
+        meta_y = [y[:, child.label_map].getnnz(axis=1)[:, np.newaxis] > 0 for child in node.children]
+        meta_y = sparse.csr_matrix(np.hstack(meta_y))
+        node.model = linear.train_1vsrest(meta_y, x, False, options, False)
+
+    node.model.weights = sparse.csc_matrix(node.model.weights)
+
+    
+
+    for i in tqdm(range(node.model.weights.shape[1])):
+        col = node.model.weights[:,i]
+        abs_weights = np.abs(col.data)
+
+        threshold = np.quantile(abs_weights, quantile)
+        idx = abs_weights < threshold
+
+        node.model.weights[idx, i] = 0
+    node.model.weights.eliminate_zeros()
 
 
 def _train_node_approx_pruning(
