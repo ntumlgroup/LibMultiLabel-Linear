@@ -163,12 +163,12 @@ def train_tree_subsample(
     y_level_0 = np.sum(y_level_1, axis=1) > 1
     y_level_0 = y_level_0.astype(int)
     y_level_0 = sparse.csr_matrix(y_level_0)
-    level_1_model = linear.train_1vsrest(y_level_0, x, options, verbose)
+    level_0_model = linear.train_1vsrest(y_level_0, x, options, verbose)
 
     # level 1's tree-based 
     label_representation = (y_level_1.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
-    root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
+    root = _build_tree(label_representation, np.arange(y_level_1.shape[1]), 0, K, dmax)
     root.is_root = True
 
     num_nodes = 0
