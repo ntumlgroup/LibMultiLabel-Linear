@@ -54,6 +54,7 @@ class TreeModel:
     def predict_values(
         self,
         x: sparse.csr_matrix,
+        level_0_model: linear.FlatModel,
         beam_width: int = 10,
     ) -> np.ndarray:
         """Calculates the decision values associated with x.
@@ -65,12 +66,16 @@ class TreeModel:
         Returns:
             np.ndarray: A matrix with dimension number of instances * number of classes.
         """
+        # level_0_pred 
+        level_0_pred = linear.predict_values(level_0_model, x)
+
         # number of instances * number of labels + total number of metalabels
         all_preds = linear.predict_values(self.flat_model, x)
 
-        return sparse.vstack([ sparse.csr_matrix( self._beam_search(all_preds[i], beam_width) ) for i in range(all_preds.shape[0])])
 
-    def _beam_search(self, instance_preds: np.ndarray, beam_width: int) -> np.ndarray:
+        return sparse.vstack([ sparse.csr_matrix( self._beam_search(level_0_pred, all_preds[i], beam_width) ) for i in range(all_preds.shape[0])])
+
+    def _beam_search(self, level_0_pred:np.ndarray, instance_preds: np.ndarray, beam_width: int) -> np.ndarray:
         """Predict with beam search using cached decision values for a single instance.
 
         Args:
@@ -80,7 +85,8 @@ class TreeModel:
         Returns:
             np.ndarray: A vector with dimension number of classes.
         """
-        cur_level = [(self.root, 0.0)]  # pairs of (node, score)
+        #cur_level = [(self.root, 0.0)]  # pairs of (node, score)
+        cur_level = [(self.root, np.maximum(0, 1 - level_0_pred[0]) ** 2)]  # pairs of (node, score)
         next_level = []
         while True:
             num_internal = sum(map(lambda pair: not pair[0].isLeaf(), cur_level))
@@ -138,18 +144,29 @@ def train_tree_subsample(
     #             indices += [idx]
     #     return indices
     def subsample_indices(y, sample_rate):
-        total_labels = np.sum(y) 
-        label_dist = np.sum(y, axis=0)/total_labels
-        label_dist = np.squeeze( np.asarray(label_dist) )
-        indices = np.random.choice(y.shape[1], int(y.shape[1]*sample_rate), replace=False, p=label_dist )
+        # # label dist
+        # total_labels = np.sum(y) 
+        # label_dist = np.sum(y, axis=0)/total_labels
+        # label_dist = np.squeeze( np.asarray(label_dist) )
+        # indices = np.random.choice(y.shape[1], int(y.shape[1]*sample_rate), replace=False, p=label_dist )
+
+        # uniform dist
+        indices = np.random.choice(y.shape[1], int(y.shape[1]*sample_rate), replace=False, p=np.ones(y.shape[1])/y.shape[1] )
         indices = np.sort(indices)
         return indices.tolist()
 
     #indices = subsample_indices(y.shape[1], sample_rate)
     indices = subsample_indices(y, sample_rate)
-    y = y[:,indices]
+    y_level_1 = y[:,indices]
 
-    label_representation = (y.T * x).tocsr()
+    # level 0's binary
+    y_level_0 = np.sum(y_level_1, axis=1) > 1
+    y_level_0 = y_level_0.astype(int)
+    y_level_0 = scipy.csr_matrix(y_level_0)
+    level_1_model = train_1vsrest(y_level_0, x, options, verbose)
+
+    # level 1's tree-based 
+    label_representation = (y_level_1.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
     root = _build_tree(label_representation, np.arange(y.shape[1]), 0, K, dmax)
     root.is_root = True
@@ -165,20 +182,23 @@ def train_tree_subsample(
     pbar = tqdm(total=num_nodes, disable=not verbose)
 
     def visit(node):
-        if node.is_root == False:
-            relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
-        else:
-            relevant_instances = y[:, node.label_map].getnnz(axis=1) >= 0
-        _train_node(y[relevant_instances], x[relevant_instances], options, node)
+        # # no binary in head
+        # if node.is_root == False:
+        #     relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
+        # else:
+        #     relevant_instances = y[:, node.label_map].getnnz(axis=1) >= 0
+
+        # binary in head
+        relevant_instances = y_level_1[:, node.label_map].getnnz(axis=1) > 0
+
+        _train_node(y_level_1[relevant_instances], x[relevant_instances], options, node)
         pbar.update()
 
     root.dfs(visit)
     pbar.close()
 
     flat_model, weight_map = _flatten_model(root)
-    return TreeModel(root, flat_model, weight_map), indices
-
-
+    return level_0_model, TreeModel(root, flat_model, weight_map), indices
 
 
 def train_tree(

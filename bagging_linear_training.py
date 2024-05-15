@@ -28,21 +28,6 @@ print("data loading cost:", time.time()-start, flush=True)
 
 training_start = time.time()
 
-# OVR with bagging in instances
-#
-# model = linear.train_1vsrest_negative_sampling(
-#             datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=0.1)
-# for _ in range(num_models-1):
-#     tmp = linear.train_1vsrest_negative_sampling(
-#             datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=0.1)
-#     model.weights += tmp.weights
-#     model.bias += tmp.bias
-# 
-# model.weights /= num_models
-# model.bias /= num_models
-# 
-# preds = linear.predict_values(model, datasets["test"]["x"])
-
 num_models = ARGS.num_models
 
 seed_pool = []
@@ -78,19 +63,6 @@ if ARGS.idx >= 0:
     #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", machine_idx=ARGS.idx)
     with open(submodel_name, "wb") as F:
         pickle.dump((tmp, indices), F, protocol=5)
-
-    # predict_name = "./preds/" + model_name.split(".model")[0] + "-{}".format(model_idx)
-    # if not os.path.isfile(predict_name):
-    #     num_instances = datasets["test"]["x"].shape[0]
-    #     num_batches = math.ceil(num_instances / batch_size)
-    #     preds = []
-    #     for i in range(num_batches):
-    #         tmp_data = datasets["test"]["x"][i * batch_size : (i + 1) * batch_size]
-    #         preds += [ tmp.predict_values(tmp_data, beam_width=ARGS.beam_width) ]
-
-    #     preds = sparse.vstack(preds)
-    #     with open(predict_name, "wb") as F:
-    #         pickle.dump((preds, indices), F)
 
 else:
     for model_idx in range(num_models):

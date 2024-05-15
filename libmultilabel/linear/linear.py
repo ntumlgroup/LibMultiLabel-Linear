@@ -66,9 +66,11 @@ class FlatModel:
                 "csr",
             )
         #return (x * self.weights).A + self.thresholds
+        if type(self.weights) != sparse.csc_matrix(np.ones(1)):
+            self.weights = sparse.csc_matrix(self.weights)
         import sparse_dot_mkl as sdm
-        #return sdm.dot_product_mkl(x, self.weights).A + self.thresholds
-        return sdm.dot_product_mkl(x, self.weights) + self.thresholds # for OVR
+        return sdm.dot_product_mkl(x, self.weights).A + self.thresholds # for tree
+        #return sdm.dot_product_mkl(x, self.weights) + self.thresholds # for OVR
         #import blinkless.sparse as bls 
         #weights = self.weights.tocsr()
         #return bls.mul_rrd(x, weights) + self.thresholds
