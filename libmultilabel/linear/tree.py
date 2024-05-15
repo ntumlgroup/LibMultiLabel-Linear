@@ -162,7 +162,7 @@ def train_tree_subsample(
     # level 0's binary
     y_level_0 = np.sum(y_level_1, axis=1) > 1
     y_level_0 = y_level_0.astype(int)
-    y_level_0 = scipy.csr_matrix(y_level_0)
+    y_level_0 = sparse.csr_matrix(y_level_0)
     level_1_model = train_1vsrest(y_level_0, x, options, verbose)
 
     # level 1's tree-based 
