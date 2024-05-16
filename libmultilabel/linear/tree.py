@@ -189,9 +189,7 @@ def train_tree_thresh(
     import time
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
-        start_time = time.time()
         _train_node_threshold(y[relevant_instances], x[relevant_instances], options, node, quantile)
-        print("Node Train Time: ", (time.time() - start_time))
         pbar.update()
 
     root.dfs(visit)
@@ -372,7 +370,6 @@ def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: s
         node (Node): Node to be trained.
         threshold (float): threshold value to prune node weights
     """
-    from libmultilabel.linear.utils import threshold_smart_indexing
 
     if node.isLeaf():
         node.model = linear.train_1vsrest(y[:, node.label_map], x, False, options, False)
@@ -386,18 +383,14 @@ def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: s
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
 
-    
-
+    weights = node.model.weights
     for i in tqdm(range(node.model.weights.shape[1])):
-        col = node.model.weights[:,i]
-        abs_weights = np.abs(col.data)
-
+        col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
+        abs_weights = np.abs(weights.data[col_start: col_end])
         threshold = np.quantile(abs_weights, quantile)
-        idx = abs_weights < threshold
+        node.model.weights.data[col_start: col_end][abs_weights < threshold] = 0
 
-        node.model.weights[idx, i] = 0
     node.model.weights.eliminate_zeros()
-
 
 def _train_node_approx_pruning(
     y: sparse.csr_matrix,

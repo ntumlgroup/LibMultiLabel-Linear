@@ -1,5 +1,6 @@
 /runs/
 /data/
+/approx_pruning/
 /example_config/
 /debug
 /experiment_results/

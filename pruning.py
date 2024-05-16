@@ -98,3 +98,66 @@ def approx_evaluate(
 
     approx(model, ts, evaluate, 0)
     return results
+
+
+def iter_thresh(
+    dataset,
+    quantile: float, 
+    quantile_multiple: float,
+    perf_drop_tolerance = .01,
+    K=100,
+    dmax=10,
+) -> linear.tree.TreeModel:
+    import copy
+    
+    root = linear.tree._tree_cache("tree_cache", dataset["train"]["y"], dataset["train"]["x"], K, dmax)
+    model_a = linear.tree.train_tree_thresh(dataset["train"]["y"], dataset["train"]["x"], root, quantile) 
+
+    model_b = copy.deepcopy(model_a)
+    model_b.flat_model.weights = linear.utils.threshold_by_label(model_b.flat_model.weights.tocsc(), quantile * quantile_multiple)
+
+    metric_a = iter_thresh_evaluate(model_a, dataset, ["P@1"])
+    metric_b = iter_thresh_evaluate(model_b, dataset, ["P@1"])
+
+    q = quantile
+    k = 1
+    if np.abs(metric_a["P@1"] - metric_b["P@1"]) > perf_drop_tolerance:
+        while np.abs(metric_a["P@1"] - metric_b["P@1"]) > perf_drop_tolerance:
+            model_a = linear.tree.train_tree_thresh(dataset["train"]["y"], dataset["train"]["x"], root, q)
+            q = q / quantile_multiple
+            model_b = linear.tree.train_tree_thresh(dataset["train"]["y"], dataset["train"]["x"], root, q)
+            metric_a = iter_thresh_evaluate(model_a, dataset, ["P@1"])
+            metric_b = iter_thresh_evaluate(model_b, dataset, ["P@1"])
+            k += 1
+        return model_a
+    else:
+        model_k_a, model_k_b = model_a, model_b   
+        metric_k_a, metric_k_b = metric_a, metric_b
+        while np.abs(metric_k_a["P@1"] - metric_k_b["P@1"]) < perf_drop_tolerance:
+            metric_k_a, model_k_a = metric_k_b, model_k_b
+            model_k_b.flat_model.weights = linear.utils.threshold_by_label(model_k_b.flat_model.weights.tocsc(), q)
+            metric_k_b = iter_thresh_evaluate(model_k_b, dataset, ['P@1'])
+            q *= quantile_multiple 
+            k += 1
+        return model_k_a
+    
+
+def iter_thresh_evaluate(
+    model,
+    dataset,
+    metrics: list[str],
+    eval_batch_size: int = 256,
+) -> dict[str, dict[str, float]]:
+    
+    num_instance = dataset["test"]["x"].shape[0]
+    results = {}
+
+    metric_collection = linear.get_metrics(metrics, dataset["test"]["y"].shape[1])
+    for i in tqdm.tqdm(range(math.ceil(num_instance / eval_batch_size))):
+        slice = np.s_[i * eval_batch_size : (i + 1) * eval_batch_size]
+        preds = linear.predict_values(model, dataset["test"]["x"][slice])
+        target = dataset["test"]["y"][slice].toarray()
+        metric_collection.update(preds, target)
+
+    results = metric_collection.compute() 
+    return results

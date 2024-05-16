@@ -17,7 +17,7 @@ import libmultilabel.linear as linear
 
 from .preprocessor import Preprocessor
 
-__all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchCV"]
+__all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchCV", "threshold_smart_indexing"]
 
 LINEAR_TECHNIQUES = {
     "1vsrest": linear.train_1vsrest,
@@ -94,31 +94,34 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     return preprocessor, model
 
 
-def threshold_smart_indexing(model, threshold: float, threshold_type: str):
-    """Threshold model weights based on a given value and model
+def threshold_smart_indexing(weights, threshold: float):
+    weights.data[np.abs(weights.data) < threshold] = 0
+    weights.eliminate_zeros()
 
-    Args:
-        model: A baseline model that needs to be pruned
-        threshold: A set value to threshold at
-        threshold_type: Indicates which type of linear technique to threshold for
+    return weights
 
-    Returns:
-        model: A object of the threshold model
-    """
+def threshold_by_label(weights, quantile):
+    assert weights.getformat() == 'csc', "weights are not in csc_matrix format"
 
-    d = model
-    if threshold_type == "tree":
-        d.flat_model.weights.data[np.abs(d.flat_model.weights.data) < threshold] = 0
-        d.flat_model.weights.eliminate_zeros()
-    elif threshold_type == "1vsrest":
-        w = d.weights.copy()
-        abs_w = np.abs(w.data)
-        i = abs_w < threshold
-        w.data[i] = 0
-        w.eliminate_zeros()
-        d.weights = w
-    d.mmap = None
-    return d
+    for i in range(weights.shape[1]):
+        col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
+        abs_weights = np.abs(weights.data[col_start: col_end])
+        threshold = np.quantile(abs_weights, quantile)
+        weights.data[col_start: col_end][abs_weights < threshold] = 0
+
+    weights.eliminate_zeros()
+    return weights.tocsr()
+
+
+def threshold_smart_indexing_1vr(model, threshold: float, threshold_type: str):
+    w = model.weights.copy()
+    abs_w = np.abs(w.data)
+    i = abs_w < threshold
+    w.data[i] = 0
+    w.eliminate_zeros()
+    model.weights = w
+    model.mmap = None
+    return model
 
 
 class MultiLabelEstimator(sklearn.base.BaseEstimator):
