@@ -36,7 +36,7 @@ while len(seed_pool) != num_models:
     if seed not in seed_pool:
         seed_pool += [seed]
 
-model_name = "Rand-label-Forest-LD_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
         seed = ARGS.seed,
         K = ARGS.K,
         sample_rate = ARGS.sample_rate,
