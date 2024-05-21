@@ -7,14 +7,19 @@ import numpy as np
 __all__ = ["get_metrics", "compute_metrics", "tabulate_metrics", "MetricCollection"]
 
 
-def _argsort_top_k(preds: np.ndarray, top_k: int) -> np.ndarray:
+def _argsort_top_k(preds: np.ndarray, top_k: int, stable=False) -> np.ndarray:
     """Sorts the top k indices in O(n + k log k) time.
     The sorting order is ascending to be consistent with np.sort.
     This means the last element is the largest, the first element is the kth largest.
+    If stable is True, then it's just plain old argsort because numpy doesn't have
+    stable argpartition.
     """
-    top_k_idx = np.argpartition(preds, -top_k)[:, -top_k:]
-    argsort_top_k = np.argsort(np.take_along_axis(preds, top_k_idx, axis=-1))
-    return np.take_along_axis(top_k_idx, argsort_top_k, axis=-1)
+    if stable:
+        return np.argsort(preds, kind="stable")[:, -top_k:]
+    else:
+        top_k_idx = np.argpartition(preds, -top_k)[:, -top_k:]
+        argsort_top_k = np.argsort(np.take_along_axis(preds, top_k_idx, axis=-1))
+        return np.take_along_axis(top_k_idx, argsort_top_k, axis=-1)
 
 
 def _dcg_argsort(argsort_preds: np.ndarray, target: np.ndarray, top_k: int) -> np.ndarray:
@@ -242,9 +247,10 @@ class MetricCollection(dict):
     added, compute() computes the metric values from the accumulated batches.
     """
 
-    def __init__(self, metrics):
+    def __init__(self, metrics, stable=False):
         self.metrics = metrics
         self.max_k = max(getattr(metric, "top_k", 0) for metric in self.metrics.values())
+        self.stable = stable
 
     def update(self, preds: np.ndarray, target: np.ndarray):
         """Adds a batch of decision values and labels.
@@ -259,7 +265,7 @@ class MetricCollection(dict):
         # As an optimization, we sort only once and pass the sorted predictions to metrics that needs them.
         # Top k ranking metrics only requires the sorted top k predictions, so we don't need to fully sort the predictions.
         if self.max_k > 0:
-            argsort_preds = _argsort_top_k(preds, self.max_k)
+            argsort_preds = _argsort_top_k(preds, self.max_k, self.stable)
 
         for metric in self.metrics.values():
             if hasattr(metric, "update_argsort"):
@@ -284,7 +290,9 @@ class MetricCollection(dict):
             metric.reset()
 
 
-def get_metrics(monitor_metrics: list[str], num_classes: int, multiclass: bool = False) -> MetricCollection:
+def get_metrics(
+    monitor_metrics: list[str], num_classes: int, multiclass: bool = False, stable: bool = False
+) -> MetricCollection:
     """Get a collection of metrics by their names.
     See MetricCollection for more details.
 
@@ -292,6 +300,7 @@ def get_metrics(monitor_metrics: list[str], num_classes: int, multiclass: bool =
         monitor_metrics (list[str]): A list of metric names.
         num_classes (int): The number of classes.
         multiclass (bool, optional): Enable multiclass mode. Defaults to False.
+        stable (bool, optional): Use stable sorting for ranking based metrics, which is slower. Defaults to False.
 
     Returns:
         MetricCollection: A metric collection of the list of metrics.
@@ -314,7 +323,7 @@ def get_metrics(monitor_metrics: list[str], num_classes: int, multiclass: bool =
         else:
             raise ValueError(f"invalid metric: {metric}")
 
-    return MetricCollection(metrics)
+    return MetricCollection(metrics, stable)
 
 
 def compute_metrics(

@@ -84,7 +84,7 @@ def approx_evaluate(
     results = {}
 
     def evaluate(t: float, pruned_weights: sparse.csr_matrix | sparse.csc_matrix):
-        metric_collection = linear.get_metrics(metrics, y.shape[1])
+        metric_collection = linear.get_metrics(metrics, y.shape[1], stable=True)
         with _terrible_python_language_design(model, pruned_weights):
             for i in tqdm.tqdm(range(math.ceil(num_instance / eval_batch_size))):
                 slice = np.s_[i * eval_batch_size : (i + 1) * eval_batch_size]
@@ -102,19 +102,21 @@ def approx_evaluate(
 
 def iter_thresh(
     dataset,
-    quantile: float, 
+    quantile: float,
     quantile_multiple: float,
-    perf_drop_tolerance = .01,
+    perf_drop_tolerance=0.01,
     K=100,
     dmax=10,
 ) -> linear.tree.TreeModel:
     import copy
-    
+
     root = linear.tree._tree_cache("tree_cache", dataset["train"]["y"], dataset["train"]["x"], K, dmax)
-    model_a = linear.tree.train_tree_thresh(dataset["train"]["y"], dataset["train"]["x"], root, quantile) 
+    model_a = linear.tree.train_tree_thresh(dataset["train"]["y"], dataset["train"]["x"], root, quantile)
 
     model_b = copy.deepcopy(model_a)
-    model_b.flat_model.weights = linear.utils.threshold_by_label(model_b.flat_model.weights.tocsc(), quantile * quantile_multiple)
+    model_b.flat_model.weights = linear.utils.threshold_by_label(
+        model_b.flat_model.weights.tocsc(), quantile * quantile_multiple
+    )
 
     metric_a = iter_thresh_evaluate(model_a, dataset, ["P@1"])
     metric_b = iter_thresh_evaluate(model_b, dataset, ["P@1"])
@@ -131,16 +133,16 @@ def iter_thresh(
             k += 1
         return model_a
     else:
-        model_k_a, model_k_b = model_a, model_b   
+        model_k_a, model_k_b = model_a, model_b
         metric_k_a, metric_k_b = metric_a, metric_b
         while np.abs(metric_k_a["P@1"] - metric_k_b["P@1"]) < perf_drop_tolerance:
             metric_k_a, model_k_a = metric_k_b, model_k_b
             model_k_b.flat_model.weights = linear.utils.threshold_by_label(model_k_b.flat_model.weights.tocsc(), q)
-            metric_k_b = iter_thresh_evaluate(model_k_b, dataset, ['P@1'])
-            q *= quantile_multiple 
+            metric_k_b = iter_thresh_evaluate(model_k_b, dataset, ["P@1"])
+            q *= quantile_multiple
             k += 1
         return model_k_a
-    
+
 
 def iter_thresh_evaluate(
     model,
@@ -148,7 +150,7 @@ def iter_thresh_evaluate(
     metrics: list[str],
     eval_batch_size: int = 256,
 ) -> dict[str, dict[str, float]]:
-    
+
     num_instance = dataset["test"]["x"].shape[0]
     results = {}
 
@@ -159,5 +161,5 @@ def iter_thresh_evaluate(
         target = dataset["test"]["y"][slice].toarray()
         metric_collection.update(preds, target)
 
-    results = metric_collection.compute() 
+    results = metric_collection.compute()
     return results
