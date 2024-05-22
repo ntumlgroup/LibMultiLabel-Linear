@@ -10,6 +10,7 @@ import yaml
 from tqdm import tqdm
 import pdb
 import pickle
+import json
 
 
 
@@ -92,7 +93,7 @@ if __name__ == "__main__":
             percentage = [(1 - float(a) * (float(r) ** int(k))) for k in range(int(k))]
         elif "lin":
             print("quantile_threshold: ", param)
-            percentage = [round(i * 0.01, 2) for i in range(0, 100)]
+            percentage = [round(i * 0.01, 2) for i in range(param[0], param[1])]
             print(percentage)
         
     
@@ -139,22 +140,34 @@ if __name__ == "__main__":
             i += 1
 
     else: 
-        
         from libmultilabel.linear.utils import load_pipeline, save_pipeline_threshold_experiment
         from libmultilabel.linear.utils import threshold_smart_indexing   
 
-        preprocessor, model = linear.utils.load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
-        model.weights = scipy.sparse.csr_matrix(model.weights)
-        data = np.abs(model.weights.data)
-        thresh, i = np.quantile(data, percentage), 0
-        for t in tqdm(thresh):
-            new_model = threshold_smart_indexing(model, float(t), linear_technique)
-            fname = dataset_name.split("/")[-1] + "--" + str(round(float(percentage[i]), 5)) + "--" + str(t) + ".pickle"
+        preprocessor, model = load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
+        model.flat_model.weights = scipy.sparse.csr_matrix(model.flat_model.weights)
+        
+        thresh_log = []
+        thresh_percentile = {}
 
+        thresh, i = np.quantile(np.abs(model.flat_model.weights.data), percentage), 0
+        for t in tqdm(thresh):
+            model.flat_model.weights = threshold_smart_indexing(model.flat_model.weights, float(t))
+            fname = str(round(float(percentage[i]), 5)) + "--" + str(t) + ".pickle"
+            
             save_pipeline_threshold_experiment(
                 os.path.join(result_path, "models"),
                 preprocessor,
-                new_model,
+                model,
                 filename=fname,
             )
+            thresh_log.append({"percentile":str(percentage[i]), "threshold":t, "nnz": str(np.sum(model.flat_model.weights != 0))})
+            thresh_percentile[str(percentage[i])] = str(t)
             i += 1
+
+
+        with open(os.path.join(result_path, "threshold_model_logs.json"), "w") as fp:
+            json.dump({"logs": thresh_log}, fp)
+        
+        with open(os.path.join(result_path, "threshold_percentile.json"), "w") as fp:
+            json.dump(thresh_percentile, fp)
+        

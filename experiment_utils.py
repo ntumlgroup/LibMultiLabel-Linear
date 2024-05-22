@@ -12,46 +12,36 @@ import re
 import numpy as np
 
 
-def create_graph(log_dir, metrics):
+def create_graph(name, result_dir, metrics):
     thresh_list = [] # x
     metrics_score = defaultdict(list) # y
+
     metrics = metrics.split("/")
-    for filename in os.listdir(log_dir):
-        # if ".json" not in filename or "linear" in filename:
-        #     continue
+
+    for filename in os.listdir(os.path.join(result_dir, "logs")):
 
         thresh = filename.rsplit("--",1)[-1]
-        if '.pickle.json' not in thresh or 'linear' in thresh:
-            continue
-        thresh = float(thresh.replace(".pickle.json", ""))
-        pattern = "\d\.\d{6,}"
-
-        # thresh = re.search(pattern, filename)
-        # if not thresh:
-        #     continue
-        # thresh = thresh.group()
-        thresh_list.append(float(thresh))
-        with open(os.path.join(log_dir, filename), "r") as f:
+        thresh = float(thresh.replace(".json", ""))
+        thresh_list.append(thresh)
+        with open(os.path.join(result_dir, "logs", filename), "r") as f:
             c = json.load(f)
 
             for m in metrics:
                 metrics_score[m].append((thresh, float(c["test"][0][m])))
-
     for m in metrics_score: 
         print(m)
         x,y = zip(*metrics_score[m])
         plt.scatter(x, y,label=m, marker=".")
 
-    model_dir = log_dir.rsplit('/', 1)[0]
-    data_name  = model_dir.split('/')
-    if not os.path.isdir(os.path.join(model_dir, "graphs")):
-        os.makedirs(os.path.join(model_dir, "graphs"))
+
+    if not os.path.isdir(os.path.join(result_dir, "graphs")):
+        os.makedirs(os.path.join(result_dir, "graphs"))
+        
     plt.legend()
-    plt.title(f'{data_name[-2]} {data_name[-1]} threshold vs scores')
-    # plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    plt.title(f'{name} threshold vs scores')
     plt.xlabel("threshold")
     plt.ylabel("scores")
-    plt.savefig(os.path.join(model_dir, "graphs", "thresh_score.png"))
+    plt.savefig(os.path.join(result_dir, "graphs", "thresh_score.png"))
     plt.close()
             
     
@@ -177,7 +167,7 @@ if __name__ == "__main__":
     if function_name == 'metric_loader':
         metric_loader(log_path, metrics)
     elif function_name == 'create_graph':
-        create_graph(log_path, metrics)
+        create_graph(dataset_name, log_path, metrics)
     elif log_name is not None and log_path is not None:
         write_test(log_path)
     

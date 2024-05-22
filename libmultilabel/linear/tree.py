@@ -381,16 +381,24 @@ def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: s
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, False, options, False)
 
-    node.model.weights = sparse.csc_matrix(node.model.weights)
+    node.model.weights = sparse.csc_matrix(node.model.weights) # check shape
+
+    # assert for csc matrix 
+    assert node.model.weights.getformat() == "csc", "node weights are not in csc format"
 
     weights = node.model.weights
-    for i in tqdm(range(node.model.weights.shape[1])):
+    for i in range(node.model.weights.shape[1]):
         col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
         abs_weights = np.abs(weights.data[col_start: col_end])
+        if len(abs_weights.data) == 0:
+            continue
         threshold = np.quantile(abs_weights, quantile)
         node.model.weights.data[col_start: col_end][abs_weights < threshold] = 0
 
     node.model.weights.eliminate_zeros()
+
+    # with open('node_shape_log.txt', "a") as fp:
+    #     fp.write(f"node shape: {node.model.weights.shape}\n")
 
 def _train_node_approx_pruning(
     y: sparse.csr_matrix,
