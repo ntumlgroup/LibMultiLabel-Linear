@@ -36,7 +36,8 @@ while len(seed_pool) != num_models:
     if seed not in seed_pool:
         seed_pool += [seed]
 
-model_name = "Rand-label-Forest_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+#model_name = "Rand-label-partitions-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+model_name = "Rand-label-Forest-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
         seed = ARGS.seed,
         K = ARGS.K,
         sample_rate = ARGS.sample_rate,
@@ -71,13 +72,23 @@ else:
         np.random.seed(seed_pool[model_idx])
     
         model_start = time.time()
-        #if not os.path.isfile(submodel_name):
-        linear.train_tree_subsample(
-            datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
-            # tmp, indices = linear.train_1vsrest_subsample(
-            #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
-            #with open(submodel_name, "wb") as F:
-            #    pickle.dump((tmp, indices), F, protocol=5)
-        print("training one model cost:", time.time()-model_start, flush=True)
+        if not os.path.isfile(submodel_name):
+        # level_0_model, level_1_model, indices = linear.train_tree_subsample(
+        #     datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        # print("training one model cost:", time.time()-model_start, flush=True)
+        # #tmp, indices = linear.train_1vsrest_subsample(
+        # #    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q", sample_rate=ARGS.sample_rate)
+        # with open(submodel_name, "wb") as F:
+        #     pickle.dump((level_0_model, level_1_model, indices), F, protocol=5)
+            print(datasets["train"]["y"].shape, flush=True)
+            models = []
+            for idx in range(10):
+            #model = linear.train_tree(
+                model = linear.train_tree_partition(
+                    datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q",K=ARGS.K)
+                models += [model]
+            with open(submodel_name, "wb") as F:
+                pickle.dump(models, F, protocol=5)
+
 
 print("training all models cost:", time.time()-start, flush=True)
