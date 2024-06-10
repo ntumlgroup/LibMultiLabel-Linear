@@ -56,14 +56,17 @@ if ARGS.idx >= 0:
     model_start = time.time()
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     if not os.path.isfile(submodel_name):
-        level_0_model, level_1_model, indices = linear.train_tree_subsample(
-                datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
+        model, metalabels = linear.train_tree_partition(
+            datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q",K=ARGS.K)
+        #level_0_model, level_1_model, indices = linear.train_tree_subsample(
+        #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
         print("training one model cost:", time.time()-model_start, flush=True)
     # submodel_name = "./models/" + model_name
     # tmp, indices = linear.train_1vsrest_distributed(
     #         datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", machine_idx=ARGS.idx)
     with open(submodel_name, "wb") as F:
-        pickle.dump((level_0_model, level_1_model, indices), F, protocol=5)
+        #pickle.dump((level_0_model, level_1_model, indices), F, protocol=5)
+        pickle.dump((model, metalabels), F, protocol=5)
 
 else:
     for model_idx in range(num_models):
