@@ -10,6 +10,7 @@ import numpy.typing as npt
 import scipy.sparse as sparse
 import typing
 
+full_weights = 0
 
 def approx(
     model,
@@ -101,51 +102,75 @@ def approx_evaluate(
 
 
 def iter_thresh(
+    name,
     dataset,
-    quantile: float,
-    quantile_multiple: float,
+    initial_quantile: float,
     perf_drop_tolerance=0.01,
     K=100,
     dmax=10,
     option="",
 ) -> linear.tree.TreeModel:
     import copy
+    import datetime
     from sklearn.model_selection import train_test_split
-    
-    np.random.seed = 1337
-    root = linear.tree._tree_cache("tree_cache", dataset["train"]["y"], dataset["train"]["x"], K, dmax)
-    x_tr, x_val, y_tr, y_val = train_test_split(dataset["train"]["x"], dataset["train"]["y"])
-    model_a = linear.tree.train_tree_thresh(y_tr, x_tr, root, quantile, option) 
+    if name == "amazoncat-13k/ver1":
+        name = "amazoncat-13k"
+
+    with open(f"runs/logs/{name}-iter-thresh-logs.txt", "a") as fp:
+        fp.write(f"{datetime.datetime.now()} \n")
+
+    np.random.seed(1337)
+    root = linear.tree._tree_cache("tree_cache", dataset["train"]["y"], dataset["train"]["x"], K=100, dmax=10)
+    x_tr, x_val, y_tr, y_val =  x_tr, x_val, y_tr, y_val = train_test_split(dataset["train"]["x"], dataset["train"]["y"], test_size=.2, train_size=.8, random_state=2)
+
+    quantiles = [(1 - (1 - initial_quantile) * (0.8 ** k)) for k in range(100)] # adjust when needed
+    model_a = linear.tree.train_tree_thresh(y_tr, x_tr, root, quantiles, options=option)     
+
+    thresholds = np.zeros((100, model_a.flat_model.weights.shape[1])) # number of quantiles * total labels
+
+    def visit(node):
+        if node.label_map.size == 0:
+            return
+        slice = np.s_[model_a.weight_map[node.index] : model_a.weight_map[node.index + 1]]
+        thresholds[:,slice] = node.thresholds
+
+    model_a.root.dfs(visit)
+
+    k = 0
+    model_a.flat_model.weights = linear.utils.threshold_by_label(model_a.flat_model.weights.tocsc(), thresholds, k)
     model_b = copy.deepcopy(model_a)
-    model_b.flat_model.weights = linear.utils.threshold_by_label(
-        model_b.flat_model.weights.tocsc(), quantile * quantile_multiple
-    )
+    model_b.flat_model.weights = linear.utils.threshold_by_label(model_b.flat_model.weights, thresholds, k + 1)
 
     metric_a = iter_thresh_evaluate(model_a, y_val, x_val, ["P@1"])
     metric_b = iter_thresh_evaluate(model_b, y_val, x_val, ["P@1"])
 
-    q = quantile
-    k = 1
     if np.abs(metric_a["P@1"] - metric_b["P@1"]) > perf_drop_tolerance:
         while np.abs(metric_a["P@1"] - metric_b["P@1"]) > perf_drop_tolerance:
-            model_a = linear.tree.train_tree_thresh(y_tr, x_tr, root, q, option)
-            q = q / quantile_multiple
-            model_b = linear.tree.train_tree_thresh(y_tr, x_tr, root, q, option)
+            quantiles = [(1 - (1 - initial_quantile) * (0.8 ** i)) for i in range(k, k-2 ,-1)]
+            model_a = linear.tree.train_tree_thresh(y_tr, x_tr, root, [quantiles[0]], option)
+            model_b = linear.tree.train_tree_thresh(y_tr, x_tr, root, [quantiles[1]], option)
             metric_a = iter_thresh_evaluate(model_a, y_val, x_val, ["P@1"])
             metric_b = iter_thresh_evaluate(model_b, y_val, x_val, ["P@1"])
-            k += 1
-        return model_a
-    else:
+            
+            with open(f"runs/logs/{name}-iter-thresh-logs.txt", "a") as fp:
+                fp.write(f"Metric: {metric_a}, Quantile: {quantiles[0]}, nnz: {model_a.flat_model.weights.nnz}, decrease thresh \n")
+            k -= 1
+        return model_a, quantiles[0]
+
+    else: 
         model_k_a, model_k_b = model_a, model_b
         metric_k_a, metric_k_b = metric_a, metric_b
 
         while np.abs(metric_k_a["P@1"] - metric_k_b["P@1"]) < perf_drop_tolerance:
-            metric_k_a, model_k_a = metric_k_b, model_k_b
-            model_k_b.flat_model.weights = linear.utils.threshold_by_label(model_k_b.flat_model.weights.tocsc(), q)
+            metric_k_a = metric_k_b
+            model_k_a = copy.deepcopy(model_k_b)
+            model_k_b.flat_model.weights = linear.utils.threshold_by_label(model_k_b.flat_model.weights, thresholds, k + 1)
             metric_k_b = iter_thresh_evaluate(model_k_b, y_val, x_val, ['P@1'])
-            q *= quantile_multiple 
+            with open(f"runs/logs/{name}-iter-thresh-logs.txt", "a") as fp:
+                fp.write(f"{k} Metric: {metric_k_a}, Quantile: {quantiles[k]}, nnz: {model_k_a.flat_model.weights.nnz}, increase thresh \n")    
             k += 1
-        return model_k_a
+        model_k_a.flat_model.weights = model_k_a.flat_model.weights.tocsr()
+        return model_k_a, quantiles[k-1]
 
 
 def iter_thresh_evaluate(
@@ -155,7 +180,6 @@ def iter_thresh_evaluate(
     metrics: list[str],
     eval_batch_size: int = 256,
 ) -> dict[str, dict[str, float]]:
-    
     num_instance = x_val.shape[0]
     results = {}
 
