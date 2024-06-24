@@ -75,28 +75,28 @@ def create_graph(name, result_dir, metrics):
     plt.savefig(os.path.join(result_dir, "graphs", f"quantile_score.png"))
     plt.close()
 
-    # # nnz vs score
-    # for filename in os.listdir(os.path.join(result_dir, "logs")):
-    #     thresh = filename.replace(".json", "")
-    #     with open(os.path.join(result_dir, "nnz.json")) as file:
-    #         nnz = json.load(file)
+    # nnz vs score
+    for filename in os.listdir(os.path.join(result_dir, "logs")):
+        thresh = filename.replace(".json", "")
+        with open(os.path.join(result_dir, "nnz.json")) as file:
+            nnz = json.load(file)
 
-    #     with open(os.path.join(result_dir, "logs", filename), "r") as f:
-    #         c = json.load(f)
-    #         for m in metrics:
-    #             metrics_score[m].append((nnz[thresh], float(c["validation"][0][m])))
+        with open(os.path.join(result_dir, "logs", filename), "r") as f:
+            c = json.load(f)
+            for m in metrics:
+                metrics_score[m].append((nnz[thresh], float(c["validation"][0][m])))
 
-    # for m in metrics_score:
-    #     print(m)
-    #     x, y = zip(*metrics_score[m])
-    #     plt.scatter(x, y, label=m, marker=".")
+    for m in metrics_score:
+        print(m)
+        x, y = zip(*metrics_score[m])
+        plt.scatter(x, y, label=m, marker=".")
 
-    # plt.legend()
-    # plt.title(f"{name} nnz vs scores")
-    # plt.xlabel("nnz")
-    # plt.ylabel("scores")
-    # plt.savefig(os.path.join(result_dir, "graphs", "nnz_score.png"))
-    # plt.close()
+    plt.legend()
+    plt.title(f"{name} nnz vs scores")
+    plt.xlabel("nnz")
+    plt.ylabel("scores")
+    plt.savefig(os.path.join(result_dir, "graphs", "nnz_score.png"))
+    plt.close()
 
 
 def node_predict(data, model_path, log_path, metrics):
