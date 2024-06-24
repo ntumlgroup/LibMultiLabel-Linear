@@ -14,7 +14,9 @@ from tqdm import tqdm
 
 from . import linear
 
-__all__ = ["train_tree", "train_tree_approx_pruning", "train_tree_thresh"]
+__all__ = ["train_tree", "train_tree_approx_pruning", "train_tree_compute_threshold"]
+
+nnz = 0
 
 
 class Node:
@@ -133,7 +135,6 @@ def train_tree(
         A model which can be used in predict_values.
     """
     root = _tree_cache("tree_cache", y, x, K, dmax)
-
     num_nodes = 0
 
     def count(node):
@@ -155,12 +156,14 @@ def train_tree(
     flat_model, weight_map = _flatten_model(root)
     return TreeModel(root, flat_model, weight_map)
 
-def train_tree_thresh(
+
+def train_tree_compute_threshold(
     y: sparse.csr_matrix,
     x: sparse.csr_matrix,
-    root: Node,
-    quantile: float,
+    root,
+    quantiles: list,
     verbose: bool = True,
+    with_thresholding=False,
     options: str = "",
 ) -> TreeModel:
     """Trains a linear model for multiabel data using a divide-and-conquer strategy.
@@ -186,14 +189,18 @@ def train_tree_thresh(
     root.dfs(count)
 
     pbar = tqdm(total=num_nodes, disable=not verbose)
-    import time
+
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
-        _train_node_threshold(y[relevant_instances], x[relevant_instances], options, node, quantile)
+        _train_node_compute_thresholds(
+            y[relevant_instances], x[relevant_instances], options, node, quantiles, with_thresholding
+        )
         pbar.update()
 
     root.dfs(visit)
     pbar.close()
+
+    print("initial nnz: ", nnz)
 
     flat_model, weight_map = _flatten_model(root)
     return TreeModel(root, flat_model, weight_map)
@@ -224,6 +231,7 @@ def _tree_cache(
         np.random.get_state(),  # used in clustering initializations
         "spherical",  # future-proof clustering method
     )
+    np.random.seed(1337)
     h = hashlib.sha256()
     h.update(str(fingerprint).encode())
     digest = h.hexdigest()[:32]
@@ -359,7 +367,10 @@ def _train_node(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: 
 
     node.model.weights = sparse.csc_matrix(node.model.weights)
 
-def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: Node, quantile: float):
+
+def _train_node_compute_thresholds(
+    y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: Node, quantiles: float, with_thresholding: False
+):
     """If node is internal, computes the metalabels representing each child and trains
     on the metalabels. Otherwise, train on y.
 
@@ -368,7 +379,7 @@ def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: s
         x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
         options (str): The option string passed to liblinear.
         node (Node): Node to be trained.
-        threshold (float): threshold value to prune node weights
+        threshold (float): threshold v  alue to prune node weights
     """
 
     if node.isLeaf():
@@ -381,24 +392,26 @@ def _train_node_threshold(y: sparse.csr_matrix, x: sparse.csr_matrix, options: s
         meta_y = sparse.csr_matrix(np.hstack(meta_y))
         node.model = linear.train_1vsrest(meta_y, x, False, options, False)
 
-    node.model.weights = sparse.csc_matrix(node.model.weights) # check shape
-
-    # assert for csc matrix 
-    assert node.model.weights.getformat() == "csc", "node weights are not in csc format"
-
+    node.model.weights = sparse.csc_matrix(node.model.weights)  # check shape
     weights = node.model.weights
-    for i in range(node.model.weights.shape[1]):
+    global nnz
+    nnz += weights.data.shape[0]
+
+    node.thresholds = np.zeros((len(quantiles), weights.shape[1]))  # number of labels * number of quantiles
+
+    for i in range(weights.shape[1]):
         col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
-        abs_weights = np.abs(weights.data[col_start: col_end])
-        if len(abs_weights.data) == 0:
+        absolute_weights = np.abs(weights.data[col_start:col_end])
+        if len(absolute_weights.data) == 0:
             continue
-        threshold = np.quantile(abs_weights, quantile)
-        node.model.weights.data[col_start: col_end][abs_weights < threshold] = 0
+        node.thresholds[:, i] = np.quantile(absolute_weights, quantiles)
+        if not with_thresholding:
+            weights.data[col_start:col_end][
+                absolute_weights < node.thresholds[0, i]
+            ] = 0  # always starts thresholding from the first value
+    if not with_thresholding:
+        node.model.weights.eliminate_zeros()
 
-    node.model.weights.eliminate_zeros()
-
-    # with open('node_shape_log.txt', "a") as fp:
-    #     fp.write(f"node shape: {node.model.weights.shape}\n")
 
 def _train_node_approx_pruning(
     y: sparse.csr_matrix,
