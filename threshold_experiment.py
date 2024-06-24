@@ -1,23 +1,17 @@
 import warnings
-warnings.filterwarnings("ignore", message=".*")
 
+warnings.filterwarnings("ignore", message=".*")
+import libmultilabel.linear as linear
+import pruning
 import scipy.sparse
 from typing import Any
 import os
 import numpy as np
 import argparse
-import yaml
 from tqdm import tqdm
-import pdb
-import pickle
+import copy
 import json
-
-
-
-def load_config(config_name):
-    with open(config_name) as file:
-        config = yaml.safe_load(file)
-    return config
+import pdb
 
 
 def load_config():
@@ -27,7 +21,7 @@ def load_config():
     parser.add_argument("--result_path", default="runs/", help="path to where models should be saved")
     parser.add_argument("--dataset_name")
     parser.add_argument("--linear_technique", default="1vsrest", help="1vsrest or tree")
-    parser.add_argument("--thresh_node", default=False)
+    parser.add_argument("--threshold_technique", default=False)
     args = parser.parse_args()
     return args
 
@@ -42,44 +36,25 @@ def load_options(threshold_options):
     elif threshold_options[0] == "lin":
         return "lin", threshold_options[1:]
 
-def write_file(data, dataset_name):
-    nnz = np.sum(data != 0)
-    z = np.sum(data == 0)
-    with open("threshold_logs.txt", "a") as f:
-        f.write(
-            dataset_name
-            + "\n"
-            + str(data.shape)
-            + " ("
-            + str(int(data.shape[0]) * int(data.shape[1]))
-            + ")"
-            + "\n"
-            + "NNZ: "
-            + str(nnz)
-            + " Z: "
-            + str(z)
-            + "\n"
-        )
+
 def create_dirs(result_path):
     if not os.path.isdir(os.path.join(result_path)):
         os.makedirs(os.path.join(result_path))
-
     if not os.path.isdir(os.path.join(result_path, "models")):
         os.makedirs(os.path.join(result_path, "models"))
-        
     if not os.path.isdir(os.path.join(result_path, "logs")):
         os.makedirs(os.path.join(result_path, "logs"))
 
+
 if __name__ == "__main__":
     args = load_config()
-    
-    (threshold_options, model_path, result_path, dataset_name, linear_technique, thresh_node) = (
+    (threshold_options, model_path, result_path, dataset_name, linear_technique, threshold_technique) = (
         args.threshold_options,
         args.model_path,
         args.result_path,
         args.dataset_name,
         args.linear_technique,
-        args.thresh_node,
+        args.threshold_technique,
     )
     create_dirs(result_path)
     threshold_type, param = load_options(threshold_options)
@@ -89,85 +64,51 @@ if __name__ == "__main__":
     else:
         if threshold_type == "geo":
             print("geometric_threshold: ", param)
-            a, r, k, percentage = param[0], param[1], param[2], []
-            percentage = [(1 - float(a) * (float(r) ** int(k))) for k in range(int(k))]
+            a, r, k, quantiles = param[0], param[1], param[2], []
+            quantiles = [(1 - float(a) * (float(r) ** int(k))) for k in range(int(k))]
         elif "lin":
-            print("quantile_threshold: ", param)
-            percentage = [round(i * 0.01, 2) for i in range(param[0], param[1])]
-            print(percentage)
-        
-    
-    if thresh_node:
-        import libmultilabel.linear as linear
+            print("linear_threshold: ", param)
+            quantiles = [round(i * 0.01, 2) for i in range(int(param[0]), int(param[1]))]
 
-        preprocessor = linear.Preprocessor()
-        dataset = linear.load_dataset("txt", f"data/{dataset_name}/train.txt", f"data/{dataset_name}/test.txt")
-        dataset = preprocessor.fit_transform(dataset)
+    nnz_dict = {}
+    if threshold_technique == "thresh_node":
+        preprocessor, model = linear.utils.load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
 
-        root = linear.tree._tree_cache("tree_cache", dataset["train"]["y"], dataset["train"]["x"])
-        
-        model = linear.tree.train_tree_thresh(
-            dataset["train"]["y"],
-            dataset["train"]["x"],
-            root,
-            quantile=percentage) # by node train + thresh
-        
-        i = 0
-        for t in tqdm(percentage):
-            def thresh_node(node):
-                for i in tqdm(range(node.model.weights.shape[1])):
-                    col = node.model.weights[:,i]
-                    abs_weights = np.abs(col.data)
-
-                    threshold = np.quantile(abs_weights, quantile=percentage)
-                    idx = abs_weights < threshold
-
-                    node.model.weights[idx, i] = 0
-                    node.model.weights.eliminate_zeros()
-
-            root.dfs(thresh_node)
-            flat_model, weight_map = linear.tree._flatten_model(root)
-            thresh_model = linear.tree.TreeModel(root, flat_model, weight_map)
-        
-            fname = dataset_name.split("/")[-1] + "--" + str(round(float(percentage[i]), 5)) + "--" + str(t) + ".pickle"
+        num_quantiles = 100
+        thresholds = pruning.concat_thresholds(model, num_quantiles)
+        for i in range(thresholds.shape[0]):
+            model.flat_model.weights = linear.utils.threshold_by_label(
+                model.flat_model.weights.tocsc(), thresholds[i, :]
+            )
+            model.flat_model.weights = model.flat_model.weights.tocsr()
 
             linear.utils.save_pipeline_threshold_experiment(
                 os.path.join(result_path, "models"),
                 preprocessor,
-                percentage,
-                filename=fname,
+                model,
+                filename=f"{str(quantiles[i])}.pickle",
             )
-            i += 1
+            nnz_dict[str(quantiles[i])] = str(np.sum(model.flat_model.weights != 0))
 
-    else: 
-        from libmultilabel.linear.utils import load_pipeline, save_pipeline_threshold_experiment
-        from libmultilabel.linear.utils import threshold_smart_indexing   
-
-        preprocessor, model = load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
+    elif threshold_technique == "thresh_fixed":
+        preprocessor, model = linear.utils.load_pipeline(os.path.join(model_path, "linear_pipeline.pickle"))
         model.flat_model.weights = scipy.sparse.csr_matrix(model.flat_model.weights)
-        
+
         thresh_log = []
         thresh_percentile = {}
 
-        thresh, i = np.quantile(np.abs(model.flat_model.weights.data), percentage), 0
+        thresh, i = np.quantile(np.abs(model.flat_model.weights.data), quantiles), 0
         for t in tqdm(thresh):
-            model.flat_model.weights = threshold_smart_indexing(model.flat_model.weights, float(t))
-            fname = str(round(float(percentage[i]), 5)) + "--" + str(t) + ".pickle"
-            
-            save_pipeline_threshold_experiment(
+            model.flat_model.weights = linear.utils.threshold_fixed(model.flat_model.weights, float(t))
+
+            linear.utils.save_pipeline_threshold_experiment(
                 os.path.join(result_path, "models"),
                 preprocessor,
                 model,
-                filename=fname,
+                filename=f"{str(round(float(quantiles[i]), 5))}.pickle",
             )
-            thresh_log.append({"percentile":str(percentage[i]), "threshold":t, "nnz": str(np.sum(model.flat_model.weights != 0))})
-            thresh_percentile[str(percentage[i])] = str(t)
+            nnz_dict[str(quantiles[i])] = {"nnz": str(np.sum(model.flat_model.weights != 0)), "threshold": str(t)}
             i += 1
 
-
-        with open(os.path.join(result_path, "threshold_model_logs.json"), "w") as fp:
-            json.dump({"logs": thresh_log}, fp)
-        
-        with open(os.path.join(result_path, "threshold_percentile.json"), "w") as fp:
-            json.dump(thresh_percentile, fp)
-        
+    with open(os.path.join(result_path, "nnz.json"), "w") as file:
+        json.dump(nnz_dict, file)
