@@ -18,7 +18,7 @@ class Node:
         self,
         label_map: np.ndarray,
         children: list[Node],
-        is_root: bool = False
+        is_root
     ):
         """
         Args:
@@ -248,7 +248,7 @@ def train_tree(
     pbar.close()
 
     flat_model, weight_map = _flatten_model(root)
-    return TreeModel(root, flat_model, weight_map)
+    return TreeModel(root, flat_model, weight_map), root.is_root
 
 def train_tree_partition(
     y: sparse.csr_matrix,
@@ -320,9 +320,9 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
     if d >= dmax or label_representation.shape[0] <= K:
         return Node(label_map=label_map, children=[])
 
-    #if d == 0:
-    if d < 0:
-        print("d == 0", flush=True)
+    if d == 0:
+    #if d < 0:
+        #print("d == 0", flush=True)
         metalabels = []
         filter_pool = []
         counter = np.zeros(K, dtype=int)
@@ -338,14 +338,14 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
                 break
 
         diff = label_representation.shape[0] - len(metalabels)
-        print(label_representation.shape[0], len(metalabels), diff)
+        #print(label_representation.shape[0], len(metalabels), diff)
         if diff > 1:
             metalabels += [i for i in np.random.choice(K, size=K, replace=False)[:diff] ]
         elif diff == 1:
             metalabels += [np.random.choice(K)]
         metalabels = np.array(metalabels)
-        print("partition done", flush=True)
-        print(metalabels.shape, flush=True)
+        #print("partition done", flush=True)
+        #print(metalabels.shape, flush=True)
 
     else:
         metalabels = (
@@ -368,7 +368,7 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
         child = _build_tree(child_representation, child_map, d + 1, K, dmax)
         children.append(child)
     if d == 0:
-        return Node(label_map=label_map, children=children, is_root=True)
+        return Node(label_map=label_map, children=children, is_root=metalabels)
     else:
         return Node(label_map=label_map, children=children)
 
