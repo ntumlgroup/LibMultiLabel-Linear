@@ -18,7 +18,7 @@ class Node:
         self,
         label_map: np.ndarray,
         children: list[Node],
-        is_root
+        is_root=None
     ):
         """
         Args:
