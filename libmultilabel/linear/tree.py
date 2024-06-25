@@ -350,7 +350,7 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
         for i in range(K):
             child_representation = label_representation[metalabels == i]
             child_map = label_map[metalabels == i]
-            child = _build_tree(child_representation, child_map, d + 1, K, dmax)
+            child = _build_tree(child_representation, child_map, d + 1, 100, dmax)
             children.append(child)
         return Node(label_map=label_map, children=children, is_root=metalabels)
 
