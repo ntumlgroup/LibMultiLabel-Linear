@@ -357,7 +357,7 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
     else:
         metalabels = (
             sklearn.cluster.KMeans(
-                K=100,
+                100,
                 random_state=np.random.randint(2**31 - 1),
                 n_init=1,
                 max_iter=300,
