@@ -224,31 +224,35 @@ def iter_thresh_global(
     )
 
     num_quantiles = 100
-    quantiles = [
-        (1 - (1 - initial_quantile) * (0.8**k)) for k in range(num_quantiles)
-    ]  # adjust when needed or make input
+    quantiles = [(1 - (1 - initial_quantile) * (0.8**k)) for k in range(num_quantiles)]
 
     model_0 = linear.tree.train_tree_compute_threshold(y_tr, x_tr, root, quantiles, options=option)
     model_0.flat_model.weights = model_0.flat_model.weights.tocsc()
     metric_0 = iter_thresh_evaluate(model_0, y_val, x_val, ["P@1"])
     thresholds = concat_thresholds(model_0, num_quantiles)
-    i = 1
+
     model_i = copy.deepcopy(model_0)
-    model_i.flat_model.weights = linear.utils.threshold_by_label(model_i.flat_model.weights, thresholds[i, :])
+    model_i.flat_model.weights = linear.utils.threshold_by_label(model_i.flat_model.weights, thresholds[1, :])
     metric_i = iter_thresh_evaluate(model_i, y_val, x_val, ["P@1"])
 
+    with open(f"runs/logs/{name}-iter-thresh-global-logs.txt", "a") as fp:
+        fp.write(f"Metric: {metric_0}, Quantile: {quantiles[0]}, nnz: {model_0.flat_model.weights.nnz}\n")
+    with open(f"runs/logs/{name}-iter-thresh-global-logs.txt", "a") as fp:
+        fp.write(f"Metric: {metric_i}, Quantile: {quantiles[1]}, nnz: {model_i.flat_model.weights.nnz}\n")
+
     for i in range(2, num_quantiles):
+        with open(f"runs/logs/{name}-iter-thresh-global-logs.txt", "a") as fp:
+            fp.write(f"Metric: {metric_i}, Quantile: {quantiles[i]}, nnz: {model_i.flat_model.weights.nnz}\n")
+
         if (np.abs(metric_i["P@1"] - metric_0["P@1"]) / metric_0["P@1"]) > perf_drop_tolerance:
             model_i.flat_model.weights = linear.utils.threshold_by_label(
                 model_0.flat_model.weights, thresholds[i - 1, :]
             )
             metric_i = iter_thresh_evaluate(model_i, y_val, x_val, ["P@1"])
             return model_i, i
+
         model_i.flat_model.weights = linear.utils.threshold_by_label(model_i.flat_model.weights, thresholds[i, :])
         metric_i = iter_thresh_evaluate(model_i, y_val, x_val, ["P@1"])
-
-        with open(f"runs/logs/{name}-iter-thresh-global-logs.txt", "a") as fp:
-            fp.write(f"Metric: {metric_i}, Quantile: {quantiles[i]}, nnz: {model_i.flat_model.weights.nnz}\n")
 
     return model_i, i
 
