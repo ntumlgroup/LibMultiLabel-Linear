@@ -10,6 +10,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import libmultilabel.linear as linear
 import argparse
+import datetime
+import time
 import pdb
 import re
 import numpy as np
@@ -22,7 +24,7 @@ def metric_loader(log_path, metrics):
     metrics = metrics.split("/")
     with open(log_path, "r") as j:
         c = json.load(j)
-        dic = c["test"][0]
+        dic = c["test"][-1]
 
     for key in dic:
         dic[key] = round(dic[key], 5)
@@ -35,10 +37,11 @@ def metric_loader(log_path, metrics):
             vals += str(dic[n]) + " & "
 
     data_name = log_path.split("/")
-    with open(os.path.join("latex-logs.txt"), "a") as f:
-        f.write(str(metrics) + "\n" + data_name[-1] + "\n" + vals + "\n")
+
     print(metrics)
     print(vals)
+    with open("latex-logs.txt", "a") as f:
+        f.write(f"{data_name} \n {vals}\n")
 
 
 def create_graph(name, result_dir, metrics):
@@ -109,14 +112,19 @@ def node_predict(data, model_path, log_path, metrics):
     dataset = linear.load_dataset("svm", f"{datapath}/train.svm", f"{datapath}/test.svm")
     dataset = preprocessor.fit_transform(dataset)
     np.random.seed(1337)
-    x_tr, x_val, y_tr, y_val = train_test_split(
-        dataset["train"]["x"], dataset["train"]["y"], test_size=0.2, train_size=0.8, random_state=2
-    )
 
-    preprocessor, model = load_pipeline(f"{model_path}")
+    preprocessor, model = load_pipeline(model_path)
     filename = model_path.split("/")[-1][:-7]
-    metrics = metrics.split("/")
-    metric_collection = pruning.iter_thresh_evaluate(model, y_val, x_val, metrics)
+
+    start = time.perf_counter()
+    metric_collection = pruning.iter_thresh_evaluate(model, dataset["test"]["y"], dataset["test"]["x"], metrics)
+    end = time.perf_counter()
+
+    with open(f"{log_path}/prediction-time.txt", "a") as fp:
+        fp.write(f"{datetime.datetime.now()}, {data}: {end-start}s\n")
+    with open("runs/logs/iter_thresh_global_eval_times.txt", "a") as fp:
+        fp.write(f"{datetime.datetime.now()}, {data}: {end-start}s\n")
+
     common_utils.dump_log(metrics=metric_collection, split="test", log_path=f"{log_path}/{filename}.json")
 
 
@@ -176,8 +184,8 @@ def train_tree_compute_thresholds():
         "R@75",
         "R@100",
     ]
-    datasets = ["rcv1", "eur-lex", "wiki10-31k", "amazoncat-13k/ver1"]
-    datasets = ["amazoncat-13k/ver1"]
+    # datasets = ["rcv1", "eur-lex", "wiki10-31k", "amazoncat-13k/ver1"]
+    datasets = ["rcv1"]
     for d in datasets:
         datapath = f"data/{d}"
         preprocessor = linear.Preprocessor()
@@ -189,21 +197,33 @@ def train_tree_compute_thresholds():
         x_tr, x_val, y_tr, y_val = train_test_split(
             dataset["train"]["x"], dataset["train"]["y"], test_size=0.2, train_size=0.8, random_state=2
         )
-        quantiles = [(1 - float(0.15) * (float(0.8) ** int(k))) for k in range(100)]
+
+        num_quantiles = 100
+        quantiles = [(1 - (1 - 0) * (0.8**k)) for k in range(num_quantiles)]
+        start = time.perf_counter()
         model = linear.tree.train_tree_compute_threshold(y_tr, x_tr, root, quantiles, options="-s 1 -e 0.0001 -c 1")
+        end = time.perf_counter()
+        breakpoint()
+        with open("runs/logs/0-100-geometric-node-tr-val-split-train-times.txt", "a") as file:
+            file.write(f"{datetime.datetime.now()} {d}: {str(end-start)} \n")
 
         linear.utils.save_pipeline_threshold_experiment(
-            f"{result_path}/{d}/L2/85-100-geometric-node-tr-val-split",
+            f"{result_path}/{d}/L2/0-100-geometric-node-tr-val-split",
             preprocessor,
             model,
             filename="linear_pipeline.pickle",
         )
 
-        metric_collection = pruning.iter_thresh_evaluate(model, y_val, x_val, metrics)
+        metric_collection = pruning.iter_thresh_evaluate(model, dataset["test"]["y"], dataset["test"]["x"], metrics)
+        breakpoint()
         common_utils.dump_log(
             metrics=metric_collection,
             split="test",
-            log_path=f"{result_path}/{d}/L2/85-100-geometric-node-tr-val-split/logs.json",
+            log_path=f"{result_path}/{d}/L2/0-100-geometric-node-tr-val-split/logs.json",
+        )
+        metric_loader(
+            f"{result_path}/{d}/L2/0-100-geometric-node-tr-val-split/logs.json",
+            "P@1/P@3/P@5/P@10/NDCG@1/NDCG@10/R@5/R@10/R@50",
         )
 
 
