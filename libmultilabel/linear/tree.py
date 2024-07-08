@@ -193,7 +193,7 @@ def train_tree_compute_threshold(
     def visit(node):
         relevant_instances = y[:, node.label_map].getnnz(axis=1) > 0
         _train_node_compute_thresholds(
-            y[relevant_instances], x[relevant_instances], options, node, quantiles, with_thresholding
+            y[relevant_instances], x[relevant_instances], options, node, with_thresholding, quantiles=quantiles
         )
         pbar.update()
 
@@ -369,7 +369,7 @@ def _train_node(y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: 
 
 
 def _train_node_compute_thresholds(
-    y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: Node, quantiles: float, with_thresholding: False
+    y: sparse.csr_matrix, x: sparse.csr_matrix, options: str, node: Node, with_thresholding: False, quantiles=[]
 ):
     """If node is internal, computes the metalabels representing each child and trains
     on the metalabels. Otherwise, train on y.
@@ -397,20 +397,20 @@ def _train_node_compute_thresholds(
     global nnz
     nnz += weights.data.shape[0]
 
-    node.thresholds = np.zeros((len(quantiles), weights.shape[1]))  # number of labels * number of quantiles
-
-    for i in range(weights.shape[1]):
-        col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
-        absolute_weights = np.abs(weights.data[col_start:col_end])
-        if len(absolute_weights.data) == 0:
-            continue
-        node.thresholds[:, i] = np.quantile(absolute_weights, quantiles)
+    if len(quantiles) != 0:
+        node.thresholds = np.zeros((len(quantiles), weights.shape[1]))  # number of labels * number of quantiles
+        for i in range(weights.shape[1]):
+            col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
+            absolute_weights = np.abs(weights.data[col_start:col_end])
+            if len(absolute_weights.data) == 0:
+                continue
+            node.thresholds[:, i] = np.quantile(absolute_weights, quantiles)
+            if not with_thresholding:
+                weights.data[col_start:col_end][
+                    absolute_weights < node.thresholds[0, i]
+                ] = 0  # always starts thresholding from the first value
         if not with_thresholding:
-            weights.data[col_start:col_end][
-                absolute_weights < node.thresholds[0, i]
-            ] = 0  # always starts thresholding from the first value
-    if not with_thresholding:
-        node.model.weights.eliminate_zeros()
+            node.model.weights.eliminate_zeros()
 
 
 def _train_node_approx_pruning(

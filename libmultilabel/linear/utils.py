@@ -17,7 +17,7 @@ import libmultilabel.linear as linear
 
 from .preprocessor import Preprocessor
 
-__all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchCV", "threshold_smart_indexing"]
+__all__ = ["save_pipeline", "load_pipeline", "MultiLabelEstimator", "GridSearchCV", "threshold_fixed"]
 
 LINEAR_TECHNIQUES = {
     "1vsrest": linear.train_1vsrest,
@@ -94,22 +94,22 @@ def load_pipeline(checkpoint_path: str) -> tuple[Preprocessor, Any]:
     return preprocessor, model
 
 
-def threshold_smart_indexing(weights, threshold: float):
+def threshold_fixed(weights, threshold: float):
     weights.data[np.abs(weights.data) < threshold] = 0
     weights.eliminate_zeros()
-
     return weights
 
-def threshold_by_label(weights, quantile):
-    assert weights.getformat() == 'csc', "weights are not in csc_matrix format"
+
+def threshold_by_label(weights, thresholds):
+    assert weights.getformat() == "csc", "weights are not in csc_matrix format"
 
     for i in range(weights.shape[1]):
         col_start, col_end = weights.indptr[i], weights.indptr[i + 1]
-        abs_weights = np.abs(weights.data[col_start: col_end])
-        threshold = np.quantile(abs_weights, quantile)
-        weights.data[col_start: col_end][abs_weights < threshold] = 0
+        abs_weights = np.abs(weights.data[col_start:col_end])
+        weights.data[col_start:col_end][abs_weights < thresholds[i]] = 0
 
     weights.eliminate_zeros()
+
     return weights.tocsr()
 
 
