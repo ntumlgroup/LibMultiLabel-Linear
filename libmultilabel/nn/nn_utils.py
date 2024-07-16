@@ -39,6 +39,7 @@ def init_model(
     classes,
     word_dict=None,
     embed_vecs=None,
+    label_vecs=None,
     init_weight=None,
     log_path=None,
     learning_rate=0.0001,
@@ -65,6 +66,8 @@ def init_model(
             map tokens to indices. Defaults to None.
         embed_vecs (torch.Tensor, optional): The pre-trained word vectors of shape
             (vocab_size, embed_dim). Defaults to None.
+        TBD: label_vecs (torch.Tensor, optional): The pre-trained label vectors of shape
+            (label_size, embed_dim). Defaults to None.
         init_weight (str): Weight initialization method from `torch.nn.init`.
             For example, the `init_weight` of `torch.nn.init.kaiming_uniform_`
             is `kaiming_uniform`. Defaults to None.
@@ -89,7 +92,7 @@ def init_model(
     """
 
     try:
-        network = getattr(networks, model_name)(embed_vecs=embed_vecs, num_classes=len(classes), **dict(network_config))
+        network = getattr(networks, model_name)(embed_vecs=embed_vecs, num_classes=len(classes), label_vecs=label_vecs, **dict(network_config))
     except:
         raise AttributeError(f"Failed to initialize {model_name}.")
 

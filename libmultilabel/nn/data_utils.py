@@ -344,6 +344,11 @@ def load_or_build_label(datasets, label_file=None, include_test_labels=False):
     return classes
 
 
+def get_label_embedding_from_file(label_embed_file):
+    # read depends on the data structure of the label file (to be discussed)
+    pass
+
+
 def get_embedding_weights_from_file(word_dict, embed_file, silent=False, cache=None):
     """If the word exists in the embedding file, load the pretrained word embedding.
     Otherwise, assign a zero vector to that word.

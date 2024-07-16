@@ -32,6 +32,7 @@ class TorchTrainer:
         classes: list = None,
         word_dict: dict = None,
         embed_vecs=None,
+        label_vecs=None,
         save_checkpoints: bool = True,
     ):
         self.run_name = config.run_name
@@ -104,6 +105,7 @@ class TorchTrainer:
             classes=classes,
             word_dict=word_dict,
             embed_vecs=embed_vecs,
+            label_vecs=label_vecs,
             log_path=self.log_path,
             checkpoint_path=config.checkpoint_path,
         )
@@ -128,6 +130,7 @@ class TorchTrainer:
         classes: list = None,
         word_dict: dict = None,
         embed_vecs=None,
+        label_vecs=None,
         log_path: str = None,
         checkpoint_path: str = None,
     ):
@@ -138,6 +141,7 @@ class TorchTrainer:
             classes(list): List of class names.
             word_dict(torchtext.vocab.Vocab): A vocab object which maps tokens to indices.
             embed_vecs (torch.Tensor): The pre-trained word vectors of shape (vocab_size, embed_dim).
+            TBD: label_vecs (torch.Tensor): The pre-trained label vectors of shape (label_size, embed_dim).
             log_path (str): Path to the log file. The log file contains the validation
                 results for each epoch and the test results. If the `log_path` is None, no performance
                 results will be logged.
@@ -166,6 +170,11 @@ class TorchTrainer:
                 classes = data_utils.load_or_build_label(
                     self.datasets, self.config.label_file, self.config.include_test_labels
                 )
+            # # load label embedding from label file
+            if self.config.label_embed_file is not None:
+                # To be discussed: label_file
+                label_vecs = data_utils.get_label_embedding_from_file(self.config.label_embed_file)
+                
 
             if self.config.early_stopping_metric not in self.config.monitor_metrics:
                 logging.warn(
@@ -187,6 +196,7 @@ class TorchTrainer:
                 classes=classes,
                 word_dict=word_dict,
                 embed_vecs=embed_vecs,
+                label_vecs=label_vecs,
                 init_weight=self.config.init_weight,
                 log_path=log_path,
                 learning_rate=self.config.learning_rate,
