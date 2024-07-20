@@ -8,6 +8,8 @@ import scipy.sparse as sparse
 from liblinear.liblinearutil import train
 from tqdm import tqdm
 
+import blinkless.sparse as bls
+
 __all__ = [
     "train_1vsrest",
     "train_thresholding",
@@ -66,7 +68,10 @@ class FlatModel:
                 "csr",
             )
 
-        return (x * self.weights).A + self.thresholds
+        if isinstance(self.weights, sparse.csr_matrix):
+            return bls.mul_rrd(x, self.weights) + self.thresholds
+        else:
+            return (x * self.weights).A + self.thresholds
 
 
 def train_1vsrest(

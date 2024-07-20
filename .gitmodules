@@ -1,3 +1,6 @@
 [submodule "docs/sdp"]
 	path = docs/sdp
 	url = https://github.com/ntumlgroup/sdp.git
+[submodule "blinkless"]
+	path = blinkless
+	url = ../blinkless
