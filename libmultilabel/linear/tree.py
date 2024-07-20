@@ -231,7 +231,6 @@ def _tree_cache(
         np.random.get_state(),  # used in clustering initializations
         "spherical",  # future-proof clustering method
     )
-    np.random.seed(1337)
     h = hashlib.sha256()
     h.update(str(fingerprint).encode())
     digest = h.hexdigest()[:32]
