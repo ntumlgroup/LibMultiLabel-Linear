@@ -224,10 +224,10 @@ def iter_thresh_global(
     if threshold_method == "per_label":
         model_0 = linear.tree.train_tree_compute_threshold(y_tr, x_tr, root, quantiles, options=option)
         thresholds = concat_thresholds(model_0, num_quantiles)
-    elif threshold_method == "fixed":
+    elif threshold_method == "all_label":
         model_0 = linear.tree.train_tree_compute_threshold(y_tr, x_tr, root, [], options=option)
         thresholds = np.quantile(np.abs(model_0.flat_model.weights.data), quantiles)
-    
+
     metric_0 = iter_thresh_evaluate(model_0, y_val, x_val, ["P@1"])
 
     with open(log_path, "a") as fp:
@@ -240,19 +240,18 @@ def iter_thresh_global(
             model_i.flat_model.weights = linear.utils.threshold_by_label(
                 model_i.flat_model.weights.tocsc(), thresholds[i, :]
             )
-        elif threshold_method == "fixed":
+        elif threshold_method == "all_label":
             model_i.flat_model.weights = linear.utils.threshold_fixed(model_i.flat_model.weights, thresholds[i])
 
         metric_i = iter_thresh_evaluate(model_i, y_val, x_val, ["P@1"])
 
-        if (np.abs(metric_i["P@1"] - metric_0["P@1"]) / metric_0["P@1"]) > perf_drop_tolerance:
+        if ((metric_0["P@1"] - metric_i["P@1"]) / metric_0["P@1"]) > perf_drop_tolerance:
             if threshold_method == "per_label":
                 model_i.flat_model.weights = linear.utils.threshold_by_label(
                     model_0.flat_model.weights.tocsc(), thresholds[i - 1, :]
                 )
-            elif threshold_method == "fixed":
+            elif threshold_method == "all_label":
                 model_i.flat_model.weights = linear.utils.threshold_fixed(model_0.flat_model.weights, thresholds[i - 1])
-
             break
 
         with open(log_path, "a") as fp:
