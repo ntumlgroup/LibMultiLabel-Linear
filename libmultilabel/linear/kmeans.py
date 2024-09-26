@@ -23,13 +23,13 @@ def spherical(x: sparse.csr_matrix, k: int, max_iter: int, tol: float) -> np.nda
     init = np.random.choice(np.arange(num_points), size=k, replace=False)
 
     centroids = x[init]  # k * dimension of underlying space
-    prev_sim = np.inf
+    prev_sim = -1.
     for _ in range(max_iter):
         similarity = x * centroids.T  # number of points * k
         cluster = similarity.argmax(axis=1).A1
 
         avg_sim = np.take_along_axis(similarity, cluster.reshape(-1, 1), axis=1).sum() / num_points
-        if prev_sim - avg_sim < tol:
+        if avg_sim - prev_sim < tol:
             return cluster
 
         centroids = np.zeros(centroids.shape)
@@ -102,7 +102,7 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
     init = np.random.choice(np.arange(num_points), size=2, replace=False)
     centroids = x[init]  # 2 * dimension of underlying space
 
-    prev_sim = np.inf
+    prev_sim = -1.
     for _ in range(max_iter):
         centroid_diff = centroids[1] - centroids[0]
         similarity_diff = (x * centroid_diff.T).toarray().ravel()  # number of points
@@ -112,7 +112,7 @@ def _balanced_spherical_2means(x: sparse.csr_matrix, max_iter: int, tol: float) 
         cluster[similarity_rank[num_points // 2 :]] = 1
 
         avg_sim = np.mean(similarity_diff * (2 * cluster - 1)) / 2
-        if prev_sim - avg_sim < tol:
+        if avg_sim - prev_sim < tol:
             return cluster
 
         centroids = np.zeros(centroids.shape)
