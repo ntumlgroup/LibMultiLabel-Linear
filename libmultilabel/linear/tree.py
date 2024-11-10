@@ -258,19 +258,7 @@ def train_tree_partition(
     dmax=10,
     verbose: bool = True,
 ) -> TreeModel:
-    """Trains a linear model for multiabel data using a divide-and-conquer strategy.
-    The algorithm used is based on https://github.com/xmc-aalto/bonsai.
-
-    Args:
-        y (sparse.csr_matrix): A 0/1 matrix with dimensions number of instances * number of classes.
-        x (sparse.csr_matrix): A matrix with dimensions number of instances * number of features.
-        options (str): The option string passed to liblinear.
-        K (int, optional): Maximum degree of nodes in the tree. Defaults to 100.
-        dmax (int, optional): Maximum depth of the tree. Defaults to 10.
-        verbose (bool, optional): Output extra progress information. Defaults to True.
-
-    Returns:
-        A model which can be used in predict_values.
+    """Random label forests 10P
     """
     label_representation = (y.T * x).tocsr()
     label_representation = sklearn.preprocessing.normalize(label_representation, norm="l2", axis=1)
@@ -320,8 +308,8 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
     if d >= dmax or label_representation.shape[0] <= K:
         return Node(label_map=label_map, children=[])
 
-    if d == 0:
-    #if d < 0:
+    #if d == 0:
+    if d < 0:
         #print("d == 0", flush=True)
         metalabels = []
         filter_pool = []
