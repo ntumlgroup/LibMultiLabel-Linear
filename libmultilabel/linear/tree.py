@@ -308,8 +308,8 @@ def _build_tree(label_representation: sparse.csr_matrix, label_map: np.ndarray, 
     if d >= dmax or label_representation.shape[0] <= K:
         return Node(label_map=label_map, children=[])
 
-    #if d == 0:
-    if d < 0:
+    if d == 0:
+    #if d < 0:
         #print("d == 0", flush=True)
         metalabels = []
         filter_pool = []

@@ -36,8 +36,8 @@ while len(seed_pool) != num_models:
     if seed not in seed_pool:
         seed_pool += [seed]
 
-#model_name = "Rand-label-partitions-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
-model_name = "Rand-label-Forest-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+model_name = "Rand-label-partitions-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
+#model_name = "Rand-label-Forest-No-replacement_{data}_seed={seed}_K={K}_sample-rate={sample_rate}.model".format(
         seed = ARGS.seed,
         K = ARGS.K,
         sample_rate = ARGS.sample_rate,
@@ -56,8 +56,8 @@ if ARGS.idx >= 0:
     model_start = time.time()
     submodel_name = "./models/" + model_name + "-{}".format(model_idx)
     if not os.path.isfile(submodel_name):
-        model, metalabels = linear.train_tree_partition(
-        #model, metalabels = linear.train_tree(
+        #model, metalabels = linear.train_tree_partition(
+        model, metalabels = linear.train_tree(
             datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -q",K=ARGS.K)
         #level_0_model, level_1_model, indices = linear.train_tree_subsample(
         #        datasets["train"]["y"], datasets["train"]["x"], "-s 1 -B 1 -e 0.0001 -m 32 -q", sample_rate=ARGS.sample_rate, K=ARGS.K)
